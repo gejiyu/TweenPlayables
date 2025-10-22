@@ -6,10 +6,10 @@ using UnityEngine.Timeline;
 
 namespace TweenPlayables
 {
-    [TrackBindingType(typeof(Text))]
+    [TrackBindingType(typeof(UILabel))]
     [TrackClipType(typeof(TweenTextClip))]
 #if UNITY_EDITOR
     [DisplayName("Tween Playables/UI/Text")]
 #endif
-    public sealed class TweenTextTrack : TweenAnimationTrack<Text, TweenTextMixerBehaviour, TweenTextBehaviour> { }
+    public sealed class TweenTextTrack : TweenAnimationTrack<UILabel, TweenTextMixerBehaviour, TweenTextBehaviour> { }
 }

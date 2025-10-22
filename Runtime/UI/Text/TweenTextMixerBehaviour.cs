@@ -2,19 +2,15 @@ using UnityEngine.UI;
 
 namespace TweenPlayables
 {
-    public sealed class TweenTextMixerBehaviour : TweenAnimationMixerBehaviour<Text, TweenTextBehaviour>
+    public sealed class TweenTextMixerBehaviour : TweenAnimationMixerBehaviour<UILabel, TweenTextBehaviour>
     {
-        readonly ColorValueMixer colorMixer = new();
         readonly IntValueMixer fontSizeMixer = new();
-        readonly FloatValueMixer lineSpacingMixer = new();
 
         string textValue = null;
 
-        public override void Blend(Text binding, TweenTextBehaviour behaviour, float weight, float progress)
+        public override void Blend(UILabel binding, TweenTextBehaviour behaviour, float weight, float progress)
         {
-            colorMixer.TryBlend(behaviour.Color, binding, progress, weight);
             fontSizeMixer.TryBlend(behaviour.FontSize, binding, progress, weight);
-            lineSpacingMixer.TryBlend(behaviour.LineSpacing, binding, progress, weight);
 
             if (behaviour.Text.IsActive)
             {
@@ -22,11 +18,9 @@ namespace TweenPlayables
             }
         }
 
-        public override void Apply(Text binding)
+        public override void Apply(UILabel binding)
         {
-            colorMixer.TryApplyAndClear(binding, (x, binding) => binding.color = x);
             fontSizeMixer.TryApplyAndClear(binding, (x, binding) => binding.fontSize = x);
-            lineSpacingMixer.TryApplyAndClear(binding, (x, binding) => binding.lineSpacing = x);
 
             if (textValue != null)
             {
