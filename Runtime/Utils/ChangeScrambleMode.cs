@@ -3,6 +3,7 @@ namespace TweenPlayables
     public enum ChangeScrambleMode
     {
         Start,
-        End
+        End,
+        Custom
     }
 }

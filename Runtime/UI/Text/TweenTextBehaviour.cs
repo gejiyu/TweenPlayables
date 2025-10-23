@@ -19,6 +19,7 @@ namespace TweenPlayables
         {
             fontSize.SetInitialValue(playerData, playerData.fontSize);
             text.SetInitialValue(playerData, playerData.text);
+            textChange.SetInitialValue(playerData, playerData.text);
         }
     }
 }

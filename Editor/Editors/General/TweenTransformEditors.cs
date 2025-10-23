@@ -26,7 +26,7 @@ namespace TweenPlayables.Editor
     {
         static readonly string[] parameters = new string[]
         {
-            "position", "rotation", "scale"
+            "position", "rotation", "scale", "positionChange", "rotationChange", "scaleChange"
         };
 
         protected override IEnumerable<string> GetPropertyNames() => parameters;

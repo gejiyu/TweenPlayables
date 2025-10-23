@@ -38,5 +38,16 @@ namespace TweenPlayables
 
             return false;
         }
+
+        public static bool TryBlend<T>(this ValueMixer<T> mixer, ReadOnlyChangeParameter<T> parameter, object binding, float progress)
+        {
+            if (parameter.IsActive)
+            {
+                mixer.Blend(parameter.Evaluate(binding, progress), 1);
+                return true;
+            }
+
+            return false;
+        }
     }
 }

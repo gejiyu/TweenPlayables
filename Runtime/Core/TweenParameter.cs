@@ -70,11 +70,31 @@ namespace TweenPlayables
 
         [SerializeField] bool active;
         [SerializeField] T changeValue;
+        [SerializeField] bool relative;
 
         public override bool IsActive => active;
         public T ChangeValue => changeValue;
+        public bool IsRelative => relative;
 
-        public abstract override T Evaluate(object key, float t);
+        [NonSerialized] readonly Dictionary<object, T> initialValueDictionary = new();
+
+        public T GetInitialValue(object key)
+        {
+            initialValueDictionary.TryGetValue(key, out var value);
+            return value;
+        }
+
+        public void SetInitialValue(object key, T value)
+        {
+            if (initialValueDictionary.ContainsKey(key))
+            {
+                initialValueDictionary[key] = value;
+            }
+            else
+            {
+                initialValueDictionary.TryAdd(key, value);
+            }
+        }
     }
 
     [Serializable]
@@ -228,7 +248,7 @@ namespace TweenPlayables
     [Serializable]
     public sealed class StringChangeParameter : ChangeParameter<string>
     {
-        [SerializeField] public ChangeScrambleMode scrambleMode = ChangeScrambleMode.End;
+        [SerializeField] public ChangeScrambleMode scrambleMode = ChangeScrambleMode.Start;
         [SerializeField] public string customScrambleChars;
 
 
@@ -238,4 +258,24 @@ namespace TweenPlayables
             return StringTweenUtility.ChangeText(ChangeValue, t, scrambleMode, customScrambleChars);
         }
     }
+
+    [Serializable]
+    public sealed class Vector3ChangeParameter : ChangeParameter<Vector3>
+    {
+        [SerializeField] public ChangeScrambleMode scrambleMode = ChangeScrambleMode.Start;
+        [SerializeField] public string customScrambleChars;
+
+
+        public override Vector3 Evaluate(object key, float t)
+        {
+            if (scrambleMode == ChangeScrambleMode.Start && t >= 0f)
+                return ChangeValue;
+            else if (scrambleMode == ChangeScrambleMode.End && t >= 1f)
+                return ChangeValue;
+            else
+                return Vector3.zero;
+        }
+    }
+
+    
 }

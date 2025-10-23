@@ -208,6 +208,7 @@ namespace TweenPlayables.Editor
             if (property.isExpanded)
             {
                 GUIHelper.AddPropertyHeight(ref height, property.FindPropertyRelative("changeValue"));
+                GUIHelper.AddPropertyHeight(ref height, property.FindPropertyRelative("relative"));
                 height += EditorGUIUtility.standardVerticalSpacing;
             }
             height += EditorGUIUtility.standardVerticalSpacing;
@@ -217,6 +218,7 @@ namespace TweenPlayables.Editor
         public virtual void DrawProperties(Rect position, SerializedProperty property)
         {
             GUIHelper.Field(ref position, property.FindPropertyRelative("changeValue"), "Change Value");
+            GUIHelper.Field(ref position, property.FindPropertyRelative("relative"), "Relative");
         }
     }
 
@@ -230,7 +232,7 @@ namespace TweenPlayables.Editor
             SerializedProperty scrambleModeProperty = property.FindPropertyRelative("scrambleMode");
             GUIHelper.Field(ref position, scrambleModeProperty, "Scramble Mode");
 
-            if (scrambleModeProperty.enumValueIndex == (int)ScrambleMode.Custom)
+            if (scrambleModeProperty.enumValueIndex == (int)ChangeScrambleMode.Custom)
             {
                 GUIHelper.Field(ref position, property.FindPropertyRelative("customScrambleChars"), "Custom Scramble Chars");
             }
@@ -243,11 +245,12 @@ namespace TweenPlayables.Editor
             {
                 height += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
                 height += GetTextAreaHeight(property.FindPropertyRelative("changeValue").stringValue);
+                
 
                 SerializedProperty scrambleModeProperty = property.FindPropertyRelative("scrambleMode");
                 GUIHelper.AddPropertyHeight(ref height, scrambleModeProperty);
 
-                if (scrambleModeProperty.enumValueIndex == (int)ScrambleMode.Custom)
+                if (scrambleModeProperty.enumValueIndex == (int)ChangeScrambleMode.Custom)
                 {
                     GUIHelper.AddPropertyHeight(ref height, property.FindPropertyRelative("customScrambleChars"));
                 }
