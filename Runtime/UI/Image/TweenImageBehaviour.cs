@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace TweenPlayables
 {
     [Serializable]
-    public sealed class TweenImageBehaviour : TweenAnimationBehaviour<Image>
+    public sealed class TweenImageBehaviour : TweenAnimationBehaviour<UISprite>
     {
         [SerializeField] ColorTweenParameter color;
         [SerializeField] FloatTweenParameter fillAmount;
@@ -13,7 +13,7 @@ namespace TweenPlayables
         public ReadOnlyTweenParameter<Color> Color => color;
         public ReadOnlyTweenParameter<float> FillAmount => fillAmount;
 
-        public override void OnTweenInitialize(Image playerData)
+        public override void OnTweenInitialize(UISprite playerData)
         {
             color.SetInitialValue(playerData, playerData.color);
             fillAmount.SetInitialValue(playerData, playerData.fillAmount);

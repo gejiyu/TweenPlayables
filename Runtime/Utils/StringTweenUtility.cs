@@ -5,10 +5,10 @@ namespace TweenPlayables
 {
     public static class StringTweenUtility
     {
-        public static string TweenText(string startValue, string endValue, float t, ScrambleMode scrambleMode = ScrambleMode.None, string customScrambleChars = null)
+        public static string TweenText(string startValue, string endValue, float t, ScrambleMode scrambleMode = ScrambleMode.Tween, string customScrambleChars = null)
         {
             // 将字符串转换为整数进行线性插值
-            if (scrambleMode == ScrambleMode.None)
+            if (scrambleMode == ScrambleMode.Tween)
             {
                 if (int.TryParse(startValue, out int startInt) && int.TryParse(endValue, out int endInt))
                 {
@@ -16,9 +16,16 @@ namespace TweenPlayables
                     return currentValue.ToString();
                 }
             }
-            
-            // 如果转换失败，返回空字符串或原始值
-            return startValue;
+            else if (scrambleMode == ScrambleMode.Start && t >= 0f)
+            {
+                return startValue;
+            }
+            else if (scrambleMode == ScrambleMode.End && t >= 1f)
+            {
+                return endValue;
+            }
+
+            return null;
         }
     }
 }

@@ -134,7 +134,7 @@ namespace TweenPlayables
     [Serializable]
     public sealed class StringTweenParameter : TweenParameter<string>
     {
-        public ScrambleMode scrambleMode = ScrambleMode.None;
+        public ScrambleMode scrambleMode = ScrambleMode.Tween;
         public string customScrambleChars;
 
         public override string GetRelativeValue(object key, string value)

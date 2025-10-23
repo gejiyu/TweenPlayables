@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEditor.Timeline;
 
 namespace TweenPlayables.Editor
 {
@@ -10,20 +11,34 @@ namespace TweenPlayables.Editor
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
+            ConditionalPlayableAssetInspectorHelper.DrawExecutionConditionGUI(property.serializedObject);
             position.y += 7f;
+
+            // 1. 绘制原有的 Tween 参数
             foreach (var propertyName in GetPropertyNames())
             {
-                GUIHelper.Field(ref position, property.FindPropertyRelative(propertyName));
-                position.y += 2f;
+                var prop = property.FindPropertyRelative(propertyName);
+                if (prop != null)
+                {
+                    GUIHelper.Field(ref position, prop);
+                    position.y += 2f;
+                }
             }
         }
 
+        
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             var height = 9f;
+            
+            // 原有参数高度
             foreach (var propertyName in GetPropertyNames())
             {
-                height += EditorGUI.GetPropertyHeight(property.FindPropertyRelative(propertyName));
+                var prop = property.FindPropertyRelative(propertyName);
+                if (prop != null)
+                {
+                    height += EditorGUI.GetPropertyHeight(prop);
+                }
             }
 
             return height;

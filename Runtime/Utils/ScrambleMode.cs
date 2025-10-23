@@ -2,11 +2,9 @@ namespace TweenPlayables
 {
     public enum ScrambleMode
     {
-        None,
-        All,
-        Uppercase,
-        Lowercase,
-        Numerals,
+        Tween,
+        Start,
+        End,
         Custom
     }
 }

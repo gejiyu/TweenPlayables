@@ -6,7 +6,7 @@ using UnityEngine.Timeline;
 namespace TweenPlayables
 {
     [Serializable]
-    public abstract class TweenAnimationClip<TAnimationBehaviour> : PlayableAsset, ITimelineClipAsset
+    public abstract class TweenAnimationClip<TAnimationBehaviour> : ConditionalPlayableAssetBase, ITimelineClipAsset
         where TAnimationBehaviour : PlayableBehaviour, new()
     {
         [SerializeField] TAnimationBehaviour behaviour = new();
@@ -19,7 +19,7 @@ namespace TweenPlayables
             }
         }
 
-        public override Playable CreatePlayable(PlayableGraph graph, GameObject owner)
+        protected override Playable CreatePlayableInternal(PlayableGraph graph, GameObject owner)
         {
             var playable = ScriptPlayable<TAnimationBehaviour>.Create(graph, behaviour);
             return playable;
