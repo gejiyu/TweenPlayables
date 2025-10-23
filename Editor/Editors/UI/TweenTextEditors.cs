@@ -26,7 +26,7 @@ namespace TweenPlayables.Editor
     {
         static readonly string[] parameters = new string[]
         {
-            "fontSize", "text"
+            "fontSize", "text", "textChange"
         };
 
         protected override IEnumerable<string> GetPropertyNames() => parameters;

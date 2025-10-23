@@ -7,6 +7,7 @@ namespace TweenPlayables
         readonly IntValueMixer fontSizeMixer = new();
 
         string textValue = null;
+        string textChangeValue = null;
 
         public override void Blend(UILabel binding, TweenTextBehaviour behaviour, float weight, float progress)
         {
@@ -16,16 +17,28 @@ namespace TweenPlayables
             {
                 textValue = behaviour.Text.Evaluate(binding, progress);
             }
+
+            if (behaviour.TextChange.IsActive)
+            {
+                textChangeValue = behaviour.TextChange.Evaluate(binding, progress);
+            }
         }
 
         public override void Apply(UILabel binding)
         {
             fontSizeMixer.TryApplyAndClear(binding, (x, binding) => binding.fontSize = x);
 
+            // Apply Text Tween first, then Text Change
             if (textValue != null)
             {
                 binding.text = textValue;
                 textValue = null;
+            }
+
+            if (textChangeValue != null)
+            {
+                binding.text = textChangeValue;
+                textChangeValue = null;
             }
         }
     }

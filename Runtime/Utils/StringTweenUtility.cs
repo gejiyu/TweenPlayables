@@ -16,13 +16,19 @@ namespace TweenPlayables
                     return currentValue.ToString();
                 }
             }
-            else if (scrambleMode == ScrambleMode.Start && t >= 0f)
+
+            return null;
+        }
+
+        public static string ChangeText(string changeValue, float t, ChangeScrambleMode scrambleMode = ChangeScrambleMode.End, string customScrambleChars = null)
+        {
+            if (scrambleMode == ChangeScrambleMode.Start && t >= 0f)
             {
-                return startValue;
+                return changeValue;
             }
-            else if (scrambleMode == ScrambleMode.End && t >= 1f)
+            else if (scrambleMode == ChangeScrambleMode.End && t >= 1f)
             {
-                return endValue;
+                return changeValue;
             }
 
             return null;

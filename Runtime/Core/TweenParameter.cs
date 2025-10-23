@@ -12,6 +12,12 @@ namespace TweenPlayables
         public abstract T GetRelativeValue(object key, T value);
     }
 
+    public abstract class ReadOnlyChangeParameter<T>
+    {
+        public virtual bool IsActive { get; }
+        public abstract T Evaluate(object key, float t);
+    }
+
     public abstract class TweenParameter<T> : ReadOnlyTweenParameter<T>
     {
         public TweenParameter() { }
@@ -52,6 +58,23 @@ namespace TweenPlayables
                 initialValueDictionary.TryAdd(key, value);
             }
         }
+    }
+
+    public abstract class ChangeParameter<T> : ReadOnlyChangeParameter<T>
+    {
+        public ChangeParameter() { }
+        public ChangeParameter(T changeValue)
+        {
+            this.changeValue = changeValue;
+        }
+
+        [SerializeField] bool active;
+        [SerializeField] T changeValue;
+
+        public override bool IsActive => active;
+        public T ChangeValue => changeValue;
+
+        public abstract override T Evaluate(object key, float t);
     }
 
     [Serializable]
@@ -148,6 +171,8 @@ namespace TweenPlayables
         }
     }
 
+
+
     [Serializable]
     public sealed class VertexGradientTweenParamterer : TweenParameter<VertexGradient>
     {
@@ -196,6 +221,21 @@ namespace TweenPlayables
                     bottomRight = Color.LerpUnclamped(StartValue.bottomLeft, EndValue.bottomLeft, t),
                 };
             }
+        }
+    }
+
+    // ChangeParameter implementations for common types
+    [Serializable]
+    public sealed class StringChangeParameter : ChangeParameter<string>
+    {
+        [SerializeField] public ChangeScrambleMode scrambleMode = ChangeScrambleMode.End;
+        [SerializeField] public string customScrambleChars;
+
+
+        public override string Evaluate(object key, float t)
+        {
+            // 使用 StringTweenUtility.ChangeText 来实现文本变化效果
+            return StringTweenUtility.ChangeText(ChangeValue, t, scrambleMode, customScrambleChars);
         }
     }
 }

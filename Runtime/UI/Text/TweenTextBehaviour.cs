@@ -9,9 +9,11 @@ namespace TweenPlayables
     {
         [SerializeField] IntTweenParameter fontSize;
         [SerializeField] StringTweenParameter text;
+        [SerializeField] StringChangeParameter textChange;
 
         public ReadOnlyTweenParameter<int> FontSize => fontSize;
         public ReadOnlyTweenParameter<string> Text => text;
+        public ReadOnlyChangeParameter<string> TextChange => textChange;
 
         public override void OnTweenInitialize(UILabel playerData)
         {
