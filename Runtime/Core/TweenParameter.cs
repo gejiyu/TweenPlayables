@@ -273,7 +273,7 @@ namespace TweenPlayables
             else if (scrambleMode == ChangeScrambleMode.End && t >= 1f)
                 return ChangeValue;
             else
-                return Vector3.zero;
+                return Vector3.positiveInfinity; // 表示无效值，不执行操作
         }
     }
 

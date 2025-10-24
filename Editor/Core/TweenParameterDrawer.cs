@@ -245,7 +245,6 @@ namespace TweenPlayables.Editor
             {
                 height += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
                 height += GetTextAreaHeight(property.FindPropertyRelative("changeValue").stringValue);
-                
 
                 SerializedProperty scrambleModeProperty = property.FindPropertyRelative("scrambleMode");
                 GUIHelper.AddPropertyHeight(ref height, scrambleModeProperty);
@@ -305,6 +304,46 @@ namespace TweenPlayables.Editor
         {
             var height = (EditorGUIUtility.singleLineHeight - 3.0f) * GetNumberOfLines(text) + 3.0f;
             return Math.Max(height, EditorGUIUtility.singleLineHeight * 2.5f);
+        }
+    }
+
+    [CustomPropertyDrawer(typeof(Vector3ChangeParameter))]
+    public sealed class Vector3ChangeParameterDrawer : ChangeParameterDrawer
+    {
+        public override void DrawProperties(Rect position, SerializedProperty property)
+        {
+            GUIHelper.Field(ref position, property.FindPropertyRelative("changeValue"), "Change Value");
+            GUIHelper.Field(ref position, property.FindPropertyRelative("relative"), "Relative");
+            
+            SerializedProperty scrambleModeProperty = property.FindPropertyRelative("scrambleMode");
+            GUIHelper.Field(ref position, scrambleModeProperty, "Scramble Mode");
+
+            if (scrambleModeProperty.enumValueIndex == (int)ChangeScrambleMode.Custom)
+            {
+                GUIHelper.Field(ref position, property.FindPropertyRelative("customScrambleChars"), "Custom Scramble Chars");
+            }
+        }
+
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        {
+            var height = headerHeight;
+            if (property.isExpanded)
+            {
+                GUIHelper.AddPropertyHeight(ref height, property.FindPropertyRelative("changeValue"));
+                GUIHelper.AddPropertyHeight(ref height, property.FindPropertyRelative("relative"));
+                
+                SerializedProperty scrambleModeProperty = property.FindPropertyRelative("scrambleMode");
+                GUIHelper.AddPropertyHeight(ref height, scrambleModeProperty);
+
+                if (scrambleModeProperty.enumValueIndex == (int)ChangeScrambleMode.Custom)
+                {
+                    GUIHelper.AddPropertyHeight(ref height, property.FindPropertyRelative("customScrambleChars"));
+                }
+
+                height += EditorGUIUtility.standardVerticalSpacing;
+            }
+            height += EditorGUIUtility.standardVerticalSpacing;
+            return height;
         }
     }
 }

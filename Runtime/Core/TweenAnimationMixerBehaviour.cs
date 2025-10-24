@@ -29,12 +29,18 @@ namespace TweenPlayables
                 for (int i = 0; i < inputCount; i++)
                 {
                     var instance = (ScriptPlayable<TAnimationBehaviour>)playable.GetInput(i);
-                    playables.Add(instance);
+                    if (instance.IsValid())
+                    {
+                        playables.Add(instance);
+                    }
                 }
 
                 foreach (var p in playables)
                 {
-                    p.GetBehaviour().Initialize(target);
+                    if (p.IsValid())
+                    {
+                        p.GetBehaviour().Initialize(target);
+                    }
                 }
             }
 
@@ -43,6 +49,11 @@ namespace TweenPlayables
             for (int i = 0; i < inputCount; i++)
             {
                 var inputPlayable = (ScriptPlayable<TAnimationBehaviour>)playable.GetInput(i);
+                
+                // Check if the input playable is valid
+                if (!inputPlayable.IsValid())
+                    continue;
+                    
                 var behaviour = inputPlayable.GetBehaviour();
                 var inputWeight = playable.GetInputWeight(i);
                 var inputProgress = (float)(inputPlayable.GetTime() / inputPlayable.GetDuration());
