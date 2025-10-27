@@ -227,5 +227,22 @@ namespace TweenPlayables.Editor
         }
         private static Texture2D _textMeshProUGUIIcon;
 
+        public static Color TimelineAnimationColor
+        {
+            get
+            {
+                if (EditorGUIUtility.isProSkin) return new Color(0.4f, 0.8f, 1f);
+                else return new Color(0.2f, 0.5f, 0.8f);
+            }
+        }
+
+        public static Texture2D TimelineAnimationIcon
+        {
+            get
+            {
+                return (Texture2D)EditorGUIUtility.IconContent("Animation.Record").image;
+            }
+        }
+
     }
 }
