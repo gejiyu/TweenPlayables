@@ -16,10 +16,6 @@ namespace TweenPlayables
             positionMixer.TryBlend(behaviour.Position, binding, progress, weight);
             rotationMixer.TryBlend(behaviour.Rotation, binding, progress, weight);
             scaleMixer.TryBlend(behaviour.Scale, binding, progress, weight);
-
-            positionChangeMixer.TryBlend(behaviour.PositionChange, binding, progress);
-            rotationChangeMixer.TryBlend(behaviour.RotationChange, binding, progress);
-            scaleChangeMixer.TryBlend(behaviour.ScaleChange, binding, progress);
         }
 
         public override void Apply(Transform binding)
@@ -27,10 +23,6 @@ namespace TweenPlayables
             positionMixer.TryApplyAndClear(binding, (x, binding) => binding.localPosition = x);
             rotationMixer.TryApplyAndClear(binding, (x, binding) => binding.localEulerAngles = x);
             scaleMixer.TryApplyAndClear(binding, (x, binding) => binding.localScale = x);
-
-            positionChangeMixer.TryApplyAndClear(binding, (x, binding) => binding.localPosition = x);
-            rotationChangeMixer.TryApplyAndClear(binding, (x, binding) => binding.localEulerAngles = x);
-            scaleChangeMixer.TryApplyAndClear(binding, (x, binding) => binding.localScale = x);
         }
     }
 }

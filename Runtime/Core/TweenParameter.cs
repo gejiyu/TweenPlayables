@@ -15,7 +15,6 @@ namespace TweenPlayables
     public abstract class ReadOnlyChangeParameter<T>
     {
         public virtual bool IsActive { get; }
-        public abstract T Evaluate(object key, float t);
     }
 
     public abstract class TweenParameter<T> : ReadOnlyTweenParameter<T>
@@ -71,6 +70,8 @@ namespace TweenPlayables
         [SerializeField] bool active;
         [SerializeField] T changeValue;
         [SerializeField] bool relative;
+        [SerializeField] public ChangeScrambleMode scrambleMode = ChangeScrambleMode.Start;
+        [SerializeField] public string customScrambleChars;
 
         public override bool IsActive => active;
         public T ChangeValue => changeValue;
@@ -247,35 +248,9 @@ namespace TweenPlayables
     // ChangeParameter implementations for common types
     [Serializable]
     public sealed class StringChangeParameter : ChangeParameter<string>
-    {
-        [SerializeField] public ChangeScrambleMode scrambleMode = ChangeScrambleMode.Start;
-        [SerializeField] public string customScrambleChars;
-
-
-        public override string Evaluate(object key, float t)
-        {
-            // 使用 StringTweenUtility.ChangeText 来实现文本变化效果
-            return StringTweenUtility.ChangeText(ChangeValue, t, scrambleMode, customScrambleChars);
-        }
-    }
+    {}
 
     [Serializable]
     public sealed class Vector3ChangeParameter : ChangeParameter<Vector3>
-    {
-        [SerializeField] public ChangeScrambleMode scrambleMode = ChangeScrambleMode.Start;
-        [SerializeField] public string customScrambleChars;
-
-
-        public override Vector3 Evaluate(object key, float t)
-        {
-            if (scrambleMode == ChangeScrambleMode.Start && t >= 0f)
-                return ChangeValue;
-            else if (scrambleMode == ChangeScrambleMode.End && t >= 1f)
-                return ChangeValue;
-            else
-                return Vector3.positiveInfinity; // 表示无效值，不执行操作
-        }
-    }
-
-    
+    {}
 }

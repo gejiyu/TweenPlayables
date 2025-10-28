@@ -18,16 +18,6 @@ namespace TweenPlayables
             {
                 textValue = behaviour.Text.Evaluate(binding, progress);
             }
-
-            if (behaviour.TextChange.IsActive)
-            {
-                textChangeValue = behaviour.TextChange.Evaluate(binding, progress);
-            }
-
-            if (behaviour.BitmapFontChange.IsActive)
-            {
-                bitmapFontChangeValue = behaviour.BitmapFontChange.Evaluate(binding, progress);
-            }
         }
 
         public override void Apply(UILabel binding)
@@ -39,21 +29,6 @@ namespace TweenPlayables
             {
                 binding.text = textValue;
                 textValue = null;
-            }
-
-            if (textChangeValue != null)
-            {
-                binding.text = textChangeValue;
-                textChangeValue = null;
-            }
-
-            if (bitmapFontChangeValue != null)
-            {
-                // 依赖GameFramework 加载
-                // var fontAsset = GLoadResManager.Instance:LoadRes(bitmapFontChangeValue);
-                // binding.bitmapFont = fontAsset as INGUIFont;
-                // GLoadResManager.Instance:ReleaseResource(bitmapFontChangeValue);
-                bitmapFontChangeValue = null;
             }
         }
     }

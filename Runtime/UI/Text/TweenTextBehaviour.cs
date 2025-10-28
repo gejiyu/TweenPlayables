@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Playables;
 using UnityEngine.UI;
 
 namespace TweenPlayables
@@ -23,12 +24,12 @@ namespace TweenPlayables
             fontSize.SetInitialValue(playerData, playerData.fontSize);
             text.SetInitialValue(playerData, playerData.text);
             textChange.SetInitialValue(playerData, playerData.text);
-            
+
             string fontName = "";
             if (playerData.bitmapFont != null)
             {
                 INGUIFont uif = playerData.bitmapFont;
-                while (uif.replacement != null) 
+                while (uif.replacement != null)
                 {
                     uif = uif.replacement;
                 }
@@ -37,8 +38,34 @@ namespace TweenPlayables
                     fontName = obj.name;
                 }
             }
-            
+
             bitmapFontChange.SetInitialValue(playerData, fontName);
+        }
+
+        public override void OnTweenStarted(UILabel binding, TweenAnimationBehaviour<UILabel> behaviour, Playable playable, FrameData info)
+        {
+            if (textChange.scrambleMode == ChangeScrambleMode.Start)
+                binding.text = textChange.ChangeValue;
+            if (bitmapFontChange.scrambleMode == ChangeScrambleMode.Start)
+            {
+                // 依赖GameFramework 加载
+                // var fontAsset = GLoadResManager.Instance:LoadRes(bitmapFontChange.ChangeValue);
+                // binding.bitmapFont = fontAsset as INGUIFont;
+                // GLoadResManager.Instance:ReleaseResource(bitmapFontChange.ChangeValue);
+            }
+        }
+
+        public override void OnTweenFinished(UILabel binding, TweenAnimationBehaviour<UILabel> behaviour, Playable playable, FrameData info)
+        {
+            if (textChange.scrambleMode == ChangeScrambleMode.End)
+                binding.text = textChange.ChangeValue;
+            if (bitmapFontChange.scrambleMode == ChangeScrambleMode.End)
+            {   
+                // 依赖GameFramework 加载
+                // var fontAsset = GLoadResManager.Instance:LoadRes(bitmapFontChange.ChangeValue);
+                // binding.bitmapFont = fontAsset as INGUIFont;
+                // GLoadResManager.Instance:ReleaseResource(bitmapFontChange.ChangeValue);
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Playables;
 
 namespace TweenPlayables
 {
@@ -27,6 +28,26 @@ namespace TweenPlayables
             positionChange.SetInitialValue(playerData, playerData.localPosition);
             rotationChange.SetInitialValue(playerData, playerData.localEulerAngles);
             scaleChange.SetInitialValue(playerData, playerData.localScale);
+        }
+
+        public override void OnTweenStarted(Transform binding, TweenAnimationBehaviour<Transform> behaviour, Playable playable, FrameData info)
+        {
+            if (positionChange.scrambleMode == ChangeScrambleMode.Start)
+                binding.localPosition = positionChange.ChangeValue;
+            if (rotationChange.scrambleMode == ChangeScrambleMode.Start)
+                binding.localEulerAngles = rotationChange.ChangeValue;
+            if (scaleChange.scrambleMode == ChangeScrambleMode.Start)
+                binding.localScale = scaleChange.ChangeValue;
+        }
+
+        public override void OnTweenFinished(Transform binding, TweenAnimationBehaviour<Transform> behaviour, Playable playable, FrameData info)
+        {
+            if (positionChange.scrambleMode == ChangeScrambleMode.End)
+                binding.localPosition = positionChange.ChangeValue;
+            if (rotationChange.scrambleMode == ChangeScrambleMode.End)
+                binding.localEulerAngles = rotationChange.ChangeValue;
+            if (scaleChange.scrambleMode == ChangeScrambleMode.End)
+                binding.localScale = scaleChange.ChangeValue;
         }
     }
 }
