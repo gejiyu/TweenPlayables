@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Sirenix.OdinInspector;
 
 namespace TweenPlayables
 {
@@ -11,11 +12,28 @@ namespace TweenPlayables
     [Serializable]
     public class AnimationEntry
     {
-        [Header("备注信息")]
+        [HorizontalGroup]
+        [LabelText("备注信息")]
+        [LabelWidth(60)]
+        [ValidateInput("ValidateComment", "备注不能为空")]
         public string comment = "";
         
-        [Header("动画名称")]
+        [HorizontalGroup]
+        [LabelText("动画名称")]
+        [LabelWidth(60)]
+        [ValidateInput("ValidateAnimationName", "动画名称不能为空")]
         public string animationName = "";
+
+        // 验证方法
+        private bool ValidateComment(string value)
+        {
+            return !string.IsNullOrWhiteSpace(value);
+        }
+
+        private bool ValidateAnimationName(string value)
+        {
+            return !string.IsNullOrWhiteSpace(value);
+        }
         
         public AnimationEntry() { }
         
@@ -31,13 +49,49 @@ namespace TweenPlayables
     /// </summary>
     [CreateAssetMenu(fileName = "TimelinePresetAnimationList", menuName = "TweenPlayables/Timeline Preset Animation List")]
     [Serializable]
+    [InfoBox("Timeline 动画预设列表配置\n用于存储可选择的动画状态名称和对应的备注信息")]
     public class TimelinePresetAnimationList : ScriptableObject
     {
-        [Header("动画条目列表（备注 -> 动画名称）")]
+        [Title("动画条目管理", "管理动画名称与备注的映射关系", TitleAlignments.Centered)]
+        [TableList(ShowIndexLabels = true, DrawScrollView = true, MaxScrollViewHeight = 400)]
+        [PropertySpace(SpaceBefore = 10)]
+        [InfoBox("双击条目可以编辑，右键可以删除", InfoMessageType.Info)]
         [SerializeField]
         public List<AnimationEntry> animationEntries = new List<AnimationEntry>()
         {
         };
+
+        [PropertySpace(SpaceBefore = 10)]
+        [HorizontalGroup("Actions", Title = "快速操作")]
+        [Button("添加新条目", ButtonSizes.Medium)]
+        private void AddNewEntry()
+        {
+            animationEntries.Add(new AnimationEntry("新备注", "新动画名称"));
+        }
+
+        [PropertySpace(SpaceBefore = 10)]
+        [HorizontalGroup("Actions")]
+        [Button("清空列表", ButtonSizes.Medium)]
+        private void ClearAllEntries()
+        {
+            if (UnityEditor.EditorUtility.DisplayDialog("确认清空", "确定要清空所有动画条目吗？", "确定", "取消"))
+            {
+                animationEntries.Clear();
+            }
+        }
+
+        [PropertySpace(SpaceBefore = 10)]
+        [HorizontalGroup("Actions")]
+        [Button("排序条目", ButtonSizes.Medium)]
+        private void SortEntries()
+        {
+            animationEntries.Sort((a, b) => string.Compare(a.comment, b.comment, StringComparison.OrdinalIgnoreCase));
+        }
+
+        [Title("预览信息")]
+        [ShowInInspector, ReadOnly]
+        [LabelText("条目数量")]
+        private int EntryCount => animationEntries.Count;
 
         /// <summary>
         /// 获取所有备注信息（用于下拉框显示）
