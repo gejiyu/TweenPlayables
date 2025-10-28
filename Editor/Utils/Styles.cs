@@ -236,11 +236,28 @@ namespace TweenPlayables.Editor
             }
         }
 
+        public static Color TimelineControlColor
+        {
+            get
+            {
+                if (EditorGUIUtility.isProSkin) return new Color(0.2f, 0.8f, 0.9f);
+                else return new Color(0.1f, 0.6f, 0.7f);
+            }
+        }
+
         public static Texture2D TimelineAnimationIcon
         {
             get
             {
                 return (Texture2D)EditorGUIUtility.IconContent("Animation.Record").image;
+            }
+        }
+
+        public static Texture2D TimelineControlIcon
+        {
+            get
+            {
+                return (Texture2D)EditorGUIUtility.IconContent("PlayButton").image;
             }
         }
 
