@@ -26,7 +26,7 @@ namespace TweenPlayables
             if (self == null) return;
 
             // 如果启用帧范围循环，记录开始时间
-            if (self.enableFrameRangeLoop)
+            if (self.enableFrameRangeLoop || self.controlAction == TimelineControlAction.FrameRangeLoop)
             {
                 self.clipStartTime = binding.time;
             }
@@ -86,7 +86,6 @@ namespace TweenPlayables
                     break;
                 case TimelineControlAction.FrameRangeLoop:
                     enableFrameRangeLoop = true;
-                    director.time = clipStartTime;
                     director.Play();
                     break;
             }
