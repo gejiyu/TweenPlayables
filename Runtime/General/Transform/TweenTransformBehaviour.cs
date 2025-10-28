@@ -32,21 +32,21 @@ namespace TweenPlayables
 
         public override void OnTweenStarted(Transform binding, TweenAnimationBehaviour<Transform> behaviour, Playable playable, FrameData info)
         {
-            if (positionChange.scrambleMode == ChangeScrambleMode.Start)
+            if (positionChange.IsActive && positionChange.scrambleMode == ChangeScrambleMode.Start)
                 binding.localPosition = positionChange.ChangeValue;
-            if (rotationChange.scrambleMode == ChangeScrambleMode.Start)
+            if (rotationChange.IsActive && rotationChange.scrambleMode == ChangeScrambleMode.Start)
                 binding.localEulerAngles = rotationChange.ChangeValue;
-            if (scaleChange.scrambleMode == ChangeScrambleMode.Start)
+            if (scaleChange.IsActive && scaleChange.scrambleMode == ChangeScrambleMode.Start)
                 binding.localScale = scaleChange.ChangeValue;
         }
 
         public override void OnTweenFinished(Transform binding, TweenAnimationBehaviour<Transform> behaviour, Playable playable, FrameData info)
         {
-            if (positionChange.scrambleMode == ChangeScrambleMode.End)
+            if (positionChange.IsActive && positionChange.scrambleMode == ChangeScrambleMode.End)
                 binding.localPosition = positionChange.ChangeValue;
-            if (rotationChange.scrambleMode == ChangeScrambleMode.End)
+            if (rotationChange.IsActive && rotationChange.scrambleMode == ChangeScrambleMode.End)
                 binding.localEulerAngles = rotationChange.ChangeValue;
-            if (scaleChange.scrambleMode == ChangeScrambleMode.End)
+            if (scaleChange.IsActive && scaleChange.scrambleMode == ChangeScrambleMode.End)
                 binding.localScale = scaleChange.ChangeValue;
         }
     }

@@ -25,13 +25,13 @@ namespace TweenPlayables
 
         public override void OnTweenStarted(UISprite binding, TweenAnimationBehaviour<UISprite> behaviour, Playable playable, FrameData info)
         {
-            if (spriteNameChange.scrambleMode == ChangeScrambleMode.Start)
+            if (spriteNameChange.IsActive && spriteNameChange.scrambleMode == ChangeScrambleMode.Start)
                 binding.spriteName = spriteNameChange.ChangeValue;
         }
 
         public override void OnTweenFinished(UISprite binding, TweenAnimationBehaviour<UISprite> behaviour, Playable playable, FrameData info)
         {
-            if (spriteNameChange.scrambleMode == ChangeScrambleMode.End)
+            if (spriteNameChange.IsActive && spriteNameChange.scrambleMode == ChangeScrambleMode.End)
                 binding.spriteName = spriteNameChange.ChangeValue;
         }
 

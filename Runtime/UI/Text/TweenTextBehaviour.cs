@@ -44,9 +44,9 @@ namespace TweenPlayables
 
         public override void OnTweenStarted(UILabel binding, TweenAnimationBehaviour<UILabel> behaviour, Playable playable, FrameData info)
         {
-            if (textChange.scrambleMode == ChangeScrambleMode.Start)
+            if (textChange.IsActive && textChange.scrambleMode == ChangeScrambleMode.Start)
                 binding.text = textChange.ChangeValue;
-            if (bitmapFontChange.scrambleMode == ChangeScrambleMode.Start)
+            if (bitmapFontChange.IsActive && bitmapFontChange.scrambleMode == ChangeScrambleMode.Start)
             {
                 // 依赖GameFramework 加载
                 // var fontAsset = GLoadResManager.Instance:LoadRes(bitmapFontChange.ChangeValue);
@@ -57,10 +57,10 @@ namespace TweenPlayables
 
         public override void OnTweenFinished(UILabel binding, TweenAnimationBehaviour<UILabel> behaviour, Playable playable, FrameData info)
         {
-            if (textChange.scrambleMode == ChangeScrambleMode.End)
+            if (textChange.IsActive && textChange.scrambleMode == ChangeScrambleMode.End)
                 binding.text = textChange.ChangeValue;
-            if (bitmapFontChange.scrambleMode == ChangeScrambleMode.End)
-            {   
+            if (bitmapFontChange.IsActive && bitmapFontChange.scrambleMode == ChangeScrambleMode.End)
+            {
                 // 依赖GameFramework 加载
                 // var fontAsset = GLoadResManager.Instance:LoadRes(bitmapFontChange.ChangeValue);
                 // binding.bitmapFont = fontAsset as INGUIFont;
