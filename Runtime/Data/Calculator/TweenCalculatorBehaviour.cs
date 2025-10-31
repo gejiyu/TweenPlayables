@@ -5,6 +5,9 @@ using UnityEngine.Timeline;
 
 namespace TweenPlayables
 {
+    /// <summary>
+    /// Timeline 计算器行为 - 在 Timeline 播放时执行数学计算并存储结果
+    /// </summary>
     [Serializable]
     public class TweenCalculatorBehaviour : PlayableBehaviour
     {
@@ -12,6 +15,9 @@ namespace TweenPlayables
         private TimelineDataManager binding;
         private CalculatorNode calculatorNode;
 
+        /// <summary>
+        /// 设置计算器节点配置
+        /// </summary>
         public void SetCalculatorNode(CalculatorNode calculatorNode)
         {
             this.calculatorNode = calculatorNode;
@@ -30,19 +36,19 @@ namespace TweenPlayables
 
         public override void OnBehaviourPlay(Playable playable, FrameData info)
         {
-            // Skip if not active
+            // 如果未激活则跳过
             if (!calculatorNode.isActive)
                 return;
 
             var dataManager = info.output.GetUserData() as TimelineDataManager;
             
-            // Initialize on first play if not already initialized
+            // 首次播放时初始化
             if (!initialized && dataManager != null)
             {
                 Initialize(dataManager);
             }
             
-            // Called when the clip starts playing
+            // Clip 开始播放时执行计算
             if (info.effectivePlayState == PlayState.Playing && binding != null)
             {
                 OnCalculatorStarted(binding, playable, info);
@@ -51,15 +57,15 @@ namespace TweenPlayables
 
         public override void OnBehaviourPause(Playable playable, FrameData info)
         {
-            // Skip if not active
+            // 如果未激活则跳过
             if (!calculatorNode.isActive)
                 return;
 
-            // Called when the clip pauses or ends
+            // Clip 暂停或结束时调用
             var duration = playable.GetDuration();
             var count = playable.GetTime() + info.deltaTime;
 
-            // Check if reached end of clip or graph is done
+            // 检查是否到达 Clip 末尾或 Graph 已完成
             if ((info.effectivePlayState == PlayState.Paused && count > duration) || 
                 playable.GetGraph().GetRootPlayable(0).IsDone())
             {
@@ -67,40 +73,42 @@ namespace TweenPlayables
             }
         }
 
+        /// <summary>
+        /// 初始化绑定
+        /// </summary>
         private void Initialize(TimelineDataManager dataManager)
         {
-            if (dataManager == null) return;
-            if (initialized) return;
+            if (dataManager == null || initialized) 
+                return;
 
             binding = dataManager;
             initialized = true;
         }
 
         /// <summary>
-        /// Called when calculator clip starts playing
+        /// 计算器 Clip 开始播放时调用
         /// </summary>
         protected virtual void OnCalculatorStarted(TimelineDataManager dataManager, Playable playable, FrameData info)
         {
-            // Perform calculation and store result
             PerformCalculation(dataManager);
         }
 
         /// <summary>
-        /// Called when calculator clip finishes
+        /// 计算器 Clip 结束时调用
         /// </summary>
         protected virtual void OnCalculatorFinished(TimelineDataManager dataManager, Playable playable, FrameData info)
         {
-            // Calculator finish logic - could optionally clear results or perform cleanup
+            // 可选：清理结果或执行其他逻辑
         }
 
         /// <summary>
-        /// Performs the calculation based on calculator node configuration
+        /// 根据配置执行计算
         /// </summary>
         private void PerformCalculation(TimelineDataManager dataManager)
         {
             if (dataManager == null) return;
 
-            // Get left operand value
+            // 获取左操作数
             float leftValue = GetOperandValue(
                 dataManager,
                 calculatorNode.leftDataType,
@@ -111,7 +119,7 @@ namespace TweenPlayables
                 calculatorNode.leftIndexDataKey
             );
 
-            // Get right operand value
+            // 获取右操作数
             float rightValue = GetOperandValue(
                 dataManager,
                 calculatorNode.rightDataType,
@@ -122,10 +130,10 @@ namespace TweenPlayables
                 calculatorNode.rightIndexDataKey
             );
 
-            // Perform calculation
+            // 执行运算
             float result = PerformOperation(leftValue, calculatorNode.calculationOperator, rightValue);
 
-            // Store result in TimelineDataManager
+            // 存储结果到 TimelineDataManager
             if (!string.IsNullOrEmpty(calculatorNode.resultDataKey))
             {
                 StoreResult(dataManager, calculatorNode.resultDataKey, result,
@@ -136,7 +144,7 @@ namespace TweenPlayables
         }
 
         /// <summary>
-        /// Gets operand value based on data source type
+        /// 根据数据源类型获取操作数值
         /// </summary>
         private float GetOperandValue(TimelineDataManager dataManager, 
             CalculatorDataSource dataType, float numericValue, string dataKey,
@@ -148,27 +156,10 @@ namespace TweenPlayables
                     return numericValue;
 
                 case CalculatorDataSource.DataManager:
-                    if (dataManager != null && !string.IsNullOrEmpty(dataKey))
-                    {
-                        // Resolve index value
-                        int resolvedIndex = GetIndexValue(dataManager, indexType, indexNumericValue, indexDataKey);
-
-                        // Get raw data
-                        var rawData = dataManager.Get<object>(dataKey, null);
-
-                        if (rawData != null)
-                        {
-                            return GetValueFromData(rawData, resolvedIndex);
-                        }
-                    }
-                    return 0f;
+                    return GetDataManagerValue(dataManager, dataKey, indexType, indexNumericValue, indexDataKey);
 
                 case CalculatorDataSource.Protobuf:
-                    if (dataManager != null && dataManager.genericFishDeadSync != null && !string.IsNullOrEmpty(dataKey))
-                    {
-                        return GetProtobufFieldValue(dataManager.genericFishDeadSync, dataKey, indexType, indexNumericValue, indexDataKey, dataManager);
-                    }
-                    return 0f;
+                    return GetProtobufValue(dataManager, dataKey, indexType, indexNumericValue, indexDataKey);
 
                 default:
                     return 0f;
@@ -176,156 +167,208 @@ namespace TweenPlayables
         }
 
         /// <summary>
-        /// Gets value from data object (handles lists and arrays)
+        /// 从 DataManager 获取值
         /// </summary>
-        private float GetValueFromData(object rawData, int resolvedIndex)
+        private float GetDataManagerValue(TimelineDataManager dataManager, string dataKey,
+            CalculatorDataSource indexType, int indexNumericValue, string indexDataKey)
         {
-            // Check for List<float>
-            if (rawData is System.Collections.Generic.List<float> floatList)
-            {
-                if (resolvedIndex >= 0 && resolvedIndex < floatList.Count)
-                    return floatList[resolvedIndex];
+            if (dataManager == null || string.IsNullOrEmpty(dataKey))
                 return 0f;
-            }
-            // Check for List<int>
-            else if (rawData is System.Collections.Generic.List<int> intList)
-            {
-                if (resolvedIndex >= 0 && resolvedIndex < intList.Count)
-                    return intList[resolvedIndex];
-                return 0f;
-            }
-            // Check for float[]
-            else if (rawData is float[] floatArray)
-            {
-                if (resolvedIndex >= 0 && resolvedIndex < floatArray.Length)
-                    return floatArray[resolvedIndex];
-                return 0f;
-            }
-            // Check for int[]
-            else if (rawData is int[] intArray)
-            {
-                if (resolvedIndex >= 0 && resolvedIndex < intArray.Length)
-                    return intArray[resolvedIndex];
-                return 0f;
-            }
-            // Try direct conversion
-            else if (rawData is float f)
-            {
-                return f;
-            }
-            else if (rawData is int i)
-            {
-                return i;
-            }
-            else if (rawData is uint ui)
-            {
-                return ui;
-            }
-            
-            return 0f;
+
+            int resolvedIndex = GetIndexValue(dataManager, indexType, indexNumericValue, indexDataKey);
+            var rawData = dataManager.Get<object>(dataKey, null);
+
+            return rawData != null ? ConvertToFloat(rawData, resolvedIndex) : 0f;
         }
 
         /// <summary>
-        /// Gets value from Protobuf field using reflection
+        /// 从 Protobuf 获取值
         /// </summary>
-        private float GetProtobufFieldValue(object protobufObject, string fieldName, 
+        private float GetProtobufValue(TimelineDataManager dataManager, string fieldPath,
+            CalculatorDataSource indexType, int indexNumericValue, string indexDataKey)
+        {
+            if (dataManager?.genericFishDeadSync == null || string.IsNullOrEmpty(fieldPath))
+                return 0f;
+
+            return GetProtobufFieldValue(dataManager.genericFishDeadSync, fieldPath, 
+                indexType, indexNumericValue, indexDataKey, dataManager);
+        }
+
+        /// <summary>
+        /// 将对象转换为 float 值（支持列表和数组）
+        /// </summary>
+        private float ConvertToFloat(object data, int index)
+        {
+            if (data == null) return 0f;
+
+            // 处理列表类型
+            switch (data)
+            {
+                case System.Collections.Generic.List<float> floatList:
+                    return GetListValue(floatList, index, "float list");
+                    
+                case System.Collections.Generic.List<int> intList:
+                    return GetListValue(intList, index, "int list");
+                    
+                case float[] floatArray:
+                    return GetArrayValue(floatArray, index, "float array");
+                    
+                case int[] intArray:
+                    return GetArrayValue(intArray, index, "int array");
+                    
+                case float f:
+                    return f;
+                    
+                case int i:
+                    return i;
+                    
+                case uint ui:
+                    return ui;
+                    
+                case double d:
+                    return (float)d;
+                    
+                case long l:
+                    return l;
+                    
+                case ulong ul:
+                    return ul;
+                    
+                default:
+                    return 0f;
+            }
+        }
+
+        /// <summary>
+        /// 从列表获取值（带边界检查）
+        /// </summary>
+        private T GetListValue<T>(System.Collections.Generic.List<T> list, int index, string typeName) where T : struct
+        {
+            if (index < 0 || index >= list.Count)
+            {
+                if (index != 0) // 只在非默认索引时警告
+                    Debug.LogWarning($"Index {index} out of range for {typeName} (size: {list.Count})");
+                return default;
+            }
+            return list[index];
+        }
+
+        /// <summary>
+        /// 从数组获取值（带边界检查）
+        /// </summary>
+        private T GetArrayValue<T>(T[] array, int index, string typeName) where T : struct
+        {
+            if (index < 0 || index >= array.Length)
+            {
+                if (index != 0)
+                    Debug.LogWarning($"Index {index} out of range for {typeName} (size: {array.Length})");
+                return default;
+            }
+            return array[index];
+        }
+
+        /// <summary>
+        /// 使用反射从 Protobuf 字段获取值（支持嵌套路径）
+        /// </summary>
+        private float GetProtobufFieldValue(object protobufObject, string fieldPath, 
             CalculatorDataSource indexType, int indexNumericValue, string indexDataKey, TimelineDataManager dataManager)
         {
-            if (protobufObject == null || string.IsNullOrEmpty(fieldName))
+            if (protobufObject == null || string.IsNullOrEmpty(fieldPath))
                 return 0f;
 
             try
             {
-                // Support nested field paths (e.g., "DrawWheelInfo.WheelId")
-                var fieldPath = fieldName.Split('.');
+                // 支持嵌套字段路径 (例如: "DrawWheelInfo.WheelId")
+                var pathParts = fieldPath.Split('.');
                 object currentObject = protobufObject;
                 
-                // Navigate through nested fields
-                for (int i = 0; i < fieldPath.Length; i++)
+                // 逐层导航嵌套字段
+                for (int i = 0; i < pathParts.Length; i++)
                 {
                     if (currentObject == null)
                         return 0f;
                     
                     var type = currentObject.GetType();
-                    var property = type.GetProperty(fieldPath[i]);
+                    var property = type.GetProperty(pathParts[i]);
                     
                     if (property == null)
+                    {
+                        Debug.LogWarning($"Protobuf field '{pathParts[i]}' not found in {type.Name}");
                         return 0f;
+                    }
                     
                     var value = property.GetValue(currentObject);
                     
-                    // If this is the last part of the path, extract the value
-                    if (i == fieldPath.Length - 1)
+                    // 最后一层路径 - 提取值
+                    if (i == pathParts.Length - 1)
                     {
-                        if (value != null)
-                        {
-                            // If it's a repeated field (list), use index
-                            if (value is Google.Protobuf.Collections.RepeatedField<uint> uintList)
-                            {
-                                int index = GetIndexValue(dataManager, indexType, indexNumericValue, indexDataKey);
-                                if (index >= 0 && index < uintList.Count)
-                                    return uintList[index];
-                                return 0f;
-                            }
-                            else if (value is Google.Protobuf.Collections.RepeatedField<int> intList)
-                            {
-                                int index = GetIndexValue(dataManager, indexType, indexNumericValue, indexDataKey);
-                                if (index >= 0 && index < intList.Count)
-                                    return intList[index];
-                                return 0f;
-                            }
-                            else if (value is Google.Protobuf.Collections.RepeatedField<float> floatList)
-                            {
-                                int index = GetIndexValue(dataManager, indexType, indexNumericValue, indexDataKey);
-                                if (index >= 0 && index < floatList.Count)
-                                    return floatList[index];
-                                return 0f;
-                            }
-                            // Handle primitive types
-                            else if (value is uint ui)
-                            {
-                                return ui;
-                            }
-                            else if (value is int intVal)
-                            {
-                                return intVal;
-                            }
-                            else if (value is float f)
-                            {
-                                return f;
-                            }
-                            else if (value is double d)
-                            {
-                                return (float)d;
-                            }
-                            else if (value is long l)
-                            {
-                                return l;
-                            }
-                            else if (value is ulong ul)
-                            {
-                                return ul;
-                            }
-                        }
-                        return 0f;
+                        return ConvertProtobufValue(value, indexType, indexNumericValue, indexDataKey, dataManager);
                     }
-                    else
-                    {
-                        // Not the last part - continue navigating
-                        currentObject = value;
-                    }
+                    
+                    // 继续导航到下一层
+                    currentObject = value;
                 }
             }
             catch (System.Exception ex)
             {
-                Debug.LogError($"Failed to get Protobuf field '{fieldName}': {ex.Message}");
+                Debug.LogError($"Failed to get Protobuf field '{fieldPath}': {ex.Message}");
             }
 
             return 0f;
         }
 
         /// <summary>
-        /// Gets index value based on data source type
+        /// 转换 Protobuf 值为 float（支持 RepeatedField 和基础类型）
+        /// </summary>
+        private float ConvertProtobufValue(object value, CalculatorDataSource indexType, 
+            int indexNumericValue, string indexDataKey, TimelineDataManager dataManager)
+        {
+            if (value == null) return 0f;
+
+            int index = GetIndexValue(dataManager, indexType, indexNumericValue, indexDataKey);
+
+            // 处理 RepeatedField 类型
+            switch (value)
+            {
+                case Google.Protobuf.Collections.RepeatedField<uint> uintList:
+                    return GetProtobufListValue(uintList, index, "uint");
+                    
+                case Google.Protobuf.Collections.RepeatedField<int> intList:
+                    return GetProtobufListValue(intList, index, "int");
+                    
+                case Google.Protobuf.Collections.RepeatedField<float> floatList:
+                    return GetProtobufListValue(floatList, index, "float");
+                    
+                case Google.Protobuf.Collections.RepeatedField<double> doubleList:
+                    return (float)GetProtobufListValue(doubleList, index, "double");
+                    
+                case Google.Protobuf.Collections.RepeatedField<long> longList:
+                    return GetProtobufListValue(longList, index, "long");
+                    
+                case Google.Protobuf.Collections.RepeatedField<ulong> ulongList:
+                    return GetProtobufListValue(ulongList, index, "ulong");
+            }
+
+            // 处理基础数值类型
+            return ConvertToFloat(value, 0);
+        }
+
+        /// <summary>
+        /// 从 Protobuf RepeatedField 获取值（带边界检查）
+        /// </summary>
+        private T GetProtobufListValue<T>(Google.Protobuf.Collections.RepeatedField<T> list, int index, string typeName)
+        {
+            if (index < 0 || index >= list.Count)
+            {
+                if (index != 0)
+                    Debug.LogWarning($"Protobuf RepeatedField<{typeName}> index {index} out of range (size: {list.Count})");
+                return default;
+            }
+            return list[index];
+        }
+
+        /// <summary>
+        /// 根据索引数据源类型获取索引值
         /// </summary>
         private int GetIndexValue(TimelineDataManager dataManager, CalculatorDataSource indexType, int indexNumericValue, string indexDataKey)
         {
@@ -347,7 +390,7 @@ namespace TweenPlayables
         }
 
         /// <summary>
-        /// Performs the mathematical operation
+        /// 执行数学运算
         /// </summary>
         private float PerformOperation(float leftValue, CalculationOperator op, float rightValue)
         {
@@ -363,10 +406,20 @@ namespace TweenPlayables
                     return leftValue * rightValue;
 
                 case CalculationOperator.Divide:
-                    return rightValue != 0 ? leftValue / rightValue : 0f;
+                    if (rightValue == 0f)
+                    {
+                        Debug.LogWarning("Division by zero in calculator");
+                        return 0f;
+                    }
+                    return leftValue / rightValue;
 
                 case CalculationOperator.Modulo:
-                    return rightValue != 0 ? leftValue % rightValue : 0f;
+                    if (rightValue == 0f)
+                    {
+                        Debug.LogWarning("Modulo by zero in calculator");
+                        return 0f;
+                    }
+                    return leftValue % rightValue;
 
                 case CalculationOperator.Power:
                     return Mathf.Pow(leftValue, rightValue);
@@ -383,7 +436,7 @@ namespace TweenPlayables
         }
 
         /// <summary>
-        /// Stores the result in TimelineDataManager
+        /// 将计算结果存储到 TimelineDataManager
         /// </summary>
         private void StoreResult(TimelineDataManager dataManager, string dataKey, float value,
             CalculatorDataSource indexType, int indexNumericValue, string indexDataKey)
@@ -391,61 +444,74 @@ namespace TweenPlayables
             if (dataManager == null || string.IsNullOrEmpty(dataKey))
                 return;
 
-            // Get the existing data
             var existingData = dataManager.Get<object>(dataKey, null);
 
-            // If no existing data, store as simple float
+            // 如果没有现有数据，直接存储为 float
             if (existingData == null)
             {
                 dataManager.Set(dataKey, value);
                 return;
             }
 
-            // Resolve index value
             int resolvedIndex = GetIndexValue(dataManager, indexType, indexNumericValue, indexDataKey);
 
-            // Check if existing data is a list or array and update at index
-            if (existingData is System.Collections.Generic.List<float> floatList)
+            // 根据现有数据类型更新值
+            switch (existingData)
             {
-                if (resolvedIndex >= 0 && resolvedIndex < floatList.Count)
-                {
-                    floatList[resolvedIndex] = value;
-                }
-                else if (resolvedIndex == floatList.Count)
-                {
-                    // Allow adding to the end
-                    floatList.Add(value);
-                }
+                case System.Collections.Generic.List<float> floatList:
+                    UpdateList(floatList, resolvedIndex, value, dataKey);
+                    break;
+                    
+                case System.Collections.Generic.List<int> intList:
+                    UpdateList(intList, resolvedIndex, (int)value, dataKey);
+                    break;
+                    
+                case float[] floatArray:
+                    UpdateArray(floatArray, resolvedIndex, value, dataKey);
+                    break;
+                    
+                case int[] intArray:
+                    UpdateArray(intArray, resolvedIndex, (int)value, dataKey);
+                    break;
+                    
+                default:
+                    // 非列表类型直接覆盖
+                    dataManager.Set(dataKey, value);
+                    break;
             }
-            else if (existingData is System.Collections.Generic.List<int> intList)
+        }
+
+        /// <summary>
+        /// 更新列表中的值（支持追加）
+        /// </summary>
+        private void UpdateList<T>(System.Collections.Generic.List<T> list, int index, T value, string dataKey)
+        {
+            if (index >= 0 && index < list.Count)
             {
-                if (resolvedIndex >= 0 && resolvedIndex < intList.Count)
-                {
-                    intList[resolvedIndex] = (int)value;
-                }
-                else if (resolvedIndex == intList.Count)
-                {
-                    intList.Add((int)value);
-                }
+                list[index] = value;
             }
-            else if (existingData is float[] floatArray)
+            else if (index == list.Count)
             {
-                if (resolvedIndex >= 0 && resolvedIndex < floatArray.Length)
-                {
-                    floatArray[resolvedIndex] = value;
-                }
-            }
-            else if (existingData is int[] intArray)
-            {
-                if (resolvedIndex >= 0 && resolvedIndex < intArray.Length)
-                {
-                    intArray[resolvedIndex] = (int)value;
-                }
+                list.Add(value);
             }
             else
             {
-                // For non-list types, just overwrite with new value
-                dataManager.Set(dataKey, value);
+                Debug.LogWarning($"Cannot update {dataKey}: index {index} out of range (size: {list.Count})");
+            }
+        }
+
+        /// <summary>
+        /// 更新数组中的值
+        /// </summary>
+        private void UpdateArray<T>(T[] array, int index, T value, string dataKey)
+        {
+            if (index >= 0 && index < array.Length)
+            {
+                array[index] = value;
+            }
+            else
+            {
+                Debug.LogWarning($"Cannot update {dataKey}: index {index} out of range (size: {array.Length})");
             }
         }
     }

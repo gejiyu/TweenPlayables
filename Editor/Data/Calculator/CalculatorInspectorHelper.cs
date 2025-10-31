@@ -32,7 +32,8 @@ namespace UnityEditor.Timeline
         /// 绘制计算器配置UI的主入口方法
         /// </summary>
         /// <param name="serializedObject">包含计算器节点的序列化对象</param>
-        public static void DrawCalculatorGUI(SerializedObject serializedObject)
+        /// <param name="dataManager">TimelineDataManager 实例（从 Track binding 获取）</param>
+        public static void DrawCalculatorGUI(SerializedObject serializedObject, TimelineDataManager dataManager = null)
         {
             var calculatorNodeProperty = serializedObject.FindProperty("calculatorNode");
             if (calculatorNodeProperty == null)
@@ -61,7 +62,8 @@ namespace UnityEditor.Timeline
                 calculatorNodeProperty.FindPropertyRelative("leftProtobufField"),
                 calculatorNodeProperty.FindPropertyRelative("leftIndexType"),
                 calculatorNodeProperty.FindPropertyRelative("leftIndexNumericValue"),
-                calculatorNodeProperty.FindPropertyRelative("leftIndexDataKey")
+                calculatorNodeProperty.FindPropertyRelative("leftIndexDataKey"),
+                dataManager
             );
             SirenixEditorGUI.EndBox();
             
@@ -84,7 +86,8 @@ namespace UnityEditor.Timeline
                 calculatorNodeProperty.FindPropertyRelative("rightProtobufField"),
                 calculatorNodeProperty.FindPropertyRelative("rightIndexType"),
                 calculatorNodeProperty.FindPropertyRelative("rightIndexNumericValue"),
-                calculatorNodeProperty.FindPropertyRelative("rightIndexDataKey")
+                calculatorNodeProperty.FindPropertyRelative("rightIndexDataKey"),
+                dataManager
             );
             SirenixEditorGUI.EndBox();
             
@@ -97,7 +100,8 @@ namespace UnityEditor.Timeline
                 resultKeyProperty,
                 calculatorNodeProperty.FindPropertyRelative("resultIndexType"),
                 calculatorNodeProperty.FindPropertyRelative("resultIndexNumericValue"),
-                calculatorNodeProperty.FindPropertyRelative("resultIndexDataKey")
+                calculatorNodeProperty.FindPropertyRelative("resultIndexDataKey"),
+                dataManager
             );
             
             if (string.IsNullOrEmpty(resultKeyProperty.stringValue))
@@ -114,7 +118,8 @@ namespace UnityEditor.Timeline
         private static void DrawOperandGUI(SerializedProperty dataTypeProperty, SerializedProperty numericValueProperty, 
                                           SerializedProperty dataKeyProperty, SerializedProperty protobufFieldProperty,
                                           SerializedProperty indexTypeProperty, 
-                                          SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty)
+                                          SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty,
+                                          TimelineDataManager dataManager)
         {
             dataTypeProperty.intValue = EditorGUILayout.Popup(Styles.DataType, dataTypeProperty.intValue, Styles.DataSourceTypeNames);
             
@@ -125,11 +130,11 @@ namespace UnityEditor.Timeline
             }
             else if (dataTypeProperty.intValue == 1) // DataManager
             {
-                DrawDataKeyDropdown(dataKeyProperty, indexTypeProperty, indexNumericValueProperty, indexDataKeyProperty);
+                DrawDataKeyDropdown(dataKeyProperty, indexTypeProperty, indexNumericValueProperty, indexDataKeyProperty, dataManager);
             }
             else if (dataTypeProperty.intValue == 2) // Protobuf
             {
-                DrawProtobufFieldDropdown(protobufFieldProperty, indexTypeProperty, indexNumericValueProperty, indexDataKeyProperty);
+                DrawProtobufFieldDropdown(protobufFieldProperty, indexTypeProperty, indexNumericValueProperty, indexDataKeyProperty, dataManager);
             }
             EditorGUI.indentLevel--;
         }
@@ -138,9 +143,9 @@ namespace UnityEditor.Timeline
         /// 绘制 DataManager 数据键下拉选择框（支持列表索引）
         /// </summary>
         private static void DrawDataKeyDropdown(SerializedProperty dataKeyProperty, SerializedProperty indexTypeProperty, 
-                                              SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty)
+                                              SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty,
+                                              TimelineDataManager dataManager)
         {
-            var dataManager = Object.FindObjectOfType<TimelineDataManager>();
             if (dataManager != null)
             {
                 var availableKeys = GetAvailableDataKeys(dataManager);
@@ -203,7 +208,7 @@ namespace UnityEditor.Timeline
                                 }
                                 else // DataManager
                                 {
-                                    DrawSimpleDataKeyDropdown(indexDataKeyProperty);
+                                    DrawSimpleDataKeyDropdown(indexDataKeyProperty, dataManager);
                                     
                                     // If index key selected, try to show actual index value and corresponding list value
                                     if (!string.IsNullOrEmpty(indexDataKeyProperty.stringValue))
@@ -254,9 +259,8 @@ namespace UnityEditor.Timeline
         /// <summary>
         /// 绘制简化版 DataManager 数据键下拉框（用于索引选择，不支持嵌套）
         /// </summary>
-        private static void DrawSimpleDataKeyDropdown(SerializedProperty dataKeyProperty)
+        private static void DrawSimpleDataKeyDropdown(SerializedProperty dataKeyProperty, TimelineDataManager dataManager)
         {
-            var dataManager = Object.FindObjectOfType<TimelineDataManager>();
             if (dataManager != null)
             {
                 var availableKeys = GetAvailableDataKeys(dataManager);
@@ -429,10 +433,9 @@ namespace UnityEditor.Timeline
         /// 绘制结果存储键下拉框（支持新建键和列表索引）
         /// </summary>
         private static void DrawResultKeyDropdown(SerializedProperty dataKeyProperty, SerializedProperty indexTypeProperty, 
-                                                  SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty)
+                                                  SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty,
+                                                  TimelineDataManager dataManager)
         {
-            var dataManager = Object.FindObjectOfType<TimelineDataManager>();
-            
             if (dataManager != null)
             {
                 var availableKeys = GetAvailableDataKeys(dataManager);
@@ -533,7 +536,7 @@ namespace UnityEditor.Timeline
                         }
                         else // DataManager
                         {
-                            DrawSimpleDataKeyDropdown(indexDataKeyProperty);
+                            DrawSimpleDataKeyDropdown(indexDataKeyProperty, dataManager);
                             
                             if (!string.IsNullOrEmpty(indexDataKeyProperty.stringValue))
                             {
@@ -579,15 +582,14 @@ namespace UnityEditor.Timeline
         /// 绘制 Protobuf 字段下拉选择框（支持多层嵌套导航）
         /// </summary>
         private static void DrawProtobufFieldDropdown(SerializedProperty fieldProperty, SerializedProperty indexTypeProperty,
-                                                     SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty)
+                                                     SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty,
+                                                     TimelineDataManager dataManager)
         {
             if (fieldProperty == null)
             {
                 EditorGUILayout.HelpBox("Protobuf field property not found", MessageType.Error);
                 return;
             }
-
-            var dataManager = Object.FindObjectOfType<TimelineDataManager>();
             
             if (dataManager == null || dataManager.genericFishDeadSync == null)
             {
