@@ -11,6 +11,32 @@ namespace UnityEditor.Timeline
     /// </summary>
     public static class CalculatorInspectorHelper
     {
+        // 常量定义
+        private const int MaxProtobufDepth = 10;
+        private const int MaxListPreviewCount = 10;
+        private const int RefreshButtonWidth = 25;
+        
+        // 属性名称常量
+        private static class PropertyNames
+        {
+            public const string CalculatorNode = "calculatorNode";
+            public const string IsActive = "isActive";
+            public const string CalculationOperator = "calculationOperator";
+            public const string ResultDataKey = "resultDataKey";
+            public const string ResultIndexType = "resultIndexType";
+            public const string ResultIndexNumericValue = "resultIndexNumericValue";
+            public const string ResultIndexDataKey = "resultIndexDataKey";
+            
+            // 操作数属性前缀
+            public const string DataType = "DataType";
+            public const string NumericValue = "NumericValue";
+            public const string DataKey = "DataKey";
+            public const string ProtobufField = "ProtobufField";
+            public const string IndexType = "IndexType";
+            public const string IndexNumericValue = "IndexNumericValue";
+            public const string IndexDataKey = "IndexDataKey";
+        }
+        
         /// <summary>
         /// UI样式定义
         /// </summary>
@@ -27,6 +53,34 @@ namespace UnityEditor.Timeline
             public static readonly string[] DataSourceTypeNames = { "Numeric", "Data Manager", "Protobuf" };
             public static readonly string[] IndexSourceTypeNames = { "Numeric", "Data Manager" };
         }
+        
+        /// <summary>
+        /// 操作数属性集合 - 减少重复的 FindPropertyRelative 调用
+        /// </summary>
+        private struct OperandProperties
+        {
+            public SerializedProperty dataType;
+            public SerializedProperty numericValue;
+            public SerializedProperty dataKey;
+            public SerializedProperty protobufField;
+            public SerializedProperty indexType;
+            public SerializedProperty indexNumericValue;
+            public SerializedProperty indexDataKey;
+            
+            public static OperandProperties Create(SerializedProperty calculatorNode, string prefix)
+            {
+                return new OperandProperties
+                {
+                    dataType = calculatorNode.FindPropertyRelative(prefix + PropertyNames.DataType),
+                    numericValue = calculatorNode.FindPropertyRelative(prefix + PropertyNames.NumericValue),
+                    dataKey = calculatorNode.FindPropertyRelative(prefix + PropertyNames.DataKey),
+                    protobufField = calculatorNode.FindPropertyRelative(prefix + PropertyNames.ProtobufField),
+                    indexType = calculatorNode.FindPropertyRelative(prefix + PropertyNames.IndexType),
+                    indexNumericValue = calculatorNode.FindPropertyRelative(prefix + PropertyNames.IndexNumericValue),
+                    indexDataKey = calculatorNode.FindPropertyRelative(prefix + PropertyNames.IndexDataKey)
+                };
+            }
+        }
 
         /// <summary>
         /// 绘制计算器配置UI的主入口方法
@@ -35,12 +89,12 @@ namespace UnityEditor.Timeline
         /// <param name="dataManager">TimelineDataManager 实例（从 Track binding 获取）</param>
         public static void DrawCalculatorGUI(SerializedObject serializedObject, TimelineDataManager dataManager = null)
         {
-            var calculatorNodeProperty = serializedObject.FindProperty("calculatorNode");
+            var calculatorNodeProperty = serializedObject.FindProperty(PropertyNames.CalculatorNode);
             if (calculatorNodeProperty == null)
                 return;
 
             // Is Active with box
-            var isActiveProperty = calculatorNodeProperty.FindPropertyRelative("isActive");
+            var isActiveProperty = calculatorNodeProperty.FindPropertyRelative(PropertyNames.IsActive);
             SirenixEditorGUI.BeginBox();
             EditorGUILayout.PropertyField(isActiveProperty, Styles.IsActive);
             SirenixEditorGUI.EndBox();
@@ -55,22 +109,14 @@ namespace UnityEditor.Timeline
 
             // Left Operand Section
             SirenixEditorGUI.BeginBox("Left Operand");
-            DrawOperandGUI(
-                calculatorNodeProperty.FindPropertyRelative("leftDataType"),
-                calculatorNodeProperty.FindPropertyRelative("leftNumericValue"),
-                calculatorNodeProperty.FindPropertyRelative("leftDataKey"),
-                calculatorNodeProperty.FindPropertyRelative("leftProtobufField"),
-                calculatorNodeProperty.FindPropertyRelative("leftIndexType"),
-                calculatorNodeProperty.FindPropertyRelative("leftIndexNumericValue"),
-                calculatorNodeProperty.FindPropertyRelative("leftIndexDataKey"),
-                dataManager
-            );
+            var leftOperand = OperandProperties.Create(calculatorNodeProperty, "left");
+            DrawOperandGUI(leftOperand, dataManager);
             SirenixEditorGUI.EndBox();
             
             EditorGUILayout.Space(5);
             
             // Calculation Operator with centered display
-            var operatorProperty = calculatorNodeProperty.FindPropertyRelative("calculationOperator");
+            var operatorProperty = calculatorNodeProperty.FindPropertyRelative(PropertyNames.CalculationOperator);
             SirenixEditorGUI.BeginBox();
             operatorProperty.intValue = EditorGUILayout.Popup(Styles.CalculationOperator, operatorProperty.intValue, Styles.CalculationOperatorNames);
             SirenixEditorGUI.EndBox();
@@ -79,31 +125,23 @@ namespace UnityEditor.Timeline
             
             // Right Operand Section
             SirenixEditorGUI.BeginBox("Right Operand");
-            DrawOperandGUI(
-                calculatorNodeProperty.FindPropertyRelative("rightDataType"),
-                calculatorNodeProperty.FindPropertyRelative("rightNumericValue"),
-                calculatorNodeProperty.FindPropertyRelative("rightDataKey"),
-                calculatorNodeProperty.FindPropertyRelative("rightProtobufField"),
-                calculatorNodeProperty.FindPropertyRelative("rightIndexType"),
-                calculatorNodeProperty.FindPropertyRelative("rightIndexNumericValue"),
-                calculatorNodeProperty.FindPropertyRelative("rightIndexDataKey"),
-                dataManager
-            );
+            var rightOperand = OperandProperties.Create(calculatorNodeProperty, "right");
+            DrawOperandGUI(rightOperand, dataManager);
             SirenixEditorGUI.EndBox();
             
             EditorGUILayout.Space(10);
             
             // Result Storage Section
             SirenixEditorGUI.BeginBox("Result Storage");
-            var resultKeyProperty = calculatorNodeProperty.FindPropertyRelative("resultDataKey");
             DrawResultKeyDropdown(
-                resultKeyProperty,
-                calculatorNodeProperty.FindPropertyRelative("resultIndexType"),
-                calculatorNodeProperty.FindPropertyRelative("resultIndexNumericValue"),
-                calculatorNodeProperty.FindPropertyRelative("resultIndexDataKey"),
+                calculatorNodeProperty.FindPropertyRelative(PropertyNames.ResultDataKey),
+                calculatorNodeProperty.FindPropertyRelative(PropertyNames.ResultIndexType),
+                calculatorNodeProperty.FindPropertyRelative(PropertyNames.ResultIndexNumericValue),
+                calculatorNodeProperty.FindPropertyRelative(PropertyNames.ResultIndexDataKey),
                 dataManager
             );
             
+            var resultKeyProperty = calculatorNodeProperty.FindPropertyRelative(PropertyNames.ResultDataKey);
             if (string.IsNullOrEmpty(resultKeyProperty.stringValue))
             {
                 EditorGUILayout.Space(3);
@@ -115,26 +153,22 @@ namespace UnityEditor.Timeline
         /// <summary>
         /// 绘制操作数数据源选择UI（左操作数或右操作数）
         /// </summary>
-        private static void DrawOperandGUI(SerializedProperty dataTypeProperty, SerializedProperty numericValueProperty, 
-                                          SerializedProperty dataKeyProperty, SerializedProperty protobufFieldProperty,
-                                          SerializedProperty indexTypeProperty, 
-                                          SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty,
-                                          TimelineDataManager dataManager)
+        private static void DrawOperandGUI(OperandProperties operand, TimelineDataManager dataManager)
         {
-            dataTypeProperty.intValue = EditorGUILayout.Popup(Styles.DataType, dataTypeProperty.intValue, Styles.DataSourceTypeNames);
+            operand.dataType.intValue = EditorGUILayout.Popup(Styles.DataType, operand.dataType.intValue, Styles.DataSourceTypeNames);
             
             EditorGUI.indentLevel++;
-            if (dataTypeProperty.intValue == 0) // Numeric
+            if (operand.dataType.intValue == 0) // Numeric
             {
-                EditorGUILayout.PropertyField(numericValueProperty, Styles.NumericValue);
+                EditorGUILayout.PropertyField(operand.numericValue, Styles.NumericValue);
             }
-            else if (dataTypeProperty.intValue == 1) // DataManager
+            else if (operand.dataType.intValue == 1) // DataManager
             {
-                DrawDataKeyDropdown(dataKeyProperty, indexTypeProperty, indexNumericValueProperty, indexDataKeyProperty, dataManager);
+                DrawDataKeyDropdown(operand.dataKey, operand.indexType, operand.indexNumericValue, operand.indexDataKey, dataManager);
             }
-            else if (dataTypeProperty.intValue == 2) // Protobuf
+            else if (operand.dataType.intValue == 2) // Protobuf
             {
-                DrawProtobufFieldDropdown(protobufFieldProperty, indexTypeProperty, indexNumericValueProperty, indexDataKeyProperty, dataManager);
+                DrawProtobufFieldDropdown(operand.protobufField, operand.indexType, operand.indexNumericValue, operand.indexDataKey, dataManager);
             }
             EditorGUI.indentLevel--;
         }
@@ -164,7 +198,7 @@ namespace UnityEditor.Timeline
                     }
                     
                     // Refresh button
-                    if (GUILayout.Button("↻", GUILayout.Width(25)))
+                    if (GUILayout.Button("↻", GUILayout.Width(RefreshButtonWidth)))
                     {
                         EditorUtility.SetDirty(dataManager);
                     }
@@ -228,6 +262,17 @@ namespace UnityEditor.Timeline
                                                 EditorGUILayout.LabelField("Index out of range", EditorStyles.miniLabel);
                                             }
                                         }
+                                        else
+                                        {
+                                            if (indexFromData == null)
+                                            {
+                                                EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' not found in DataManager", MessageType.Warning);
+                                            }
+                                            else
+                                            {
+                                                EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' is not an int (current type: {indexFromData.GetType().Name})", MessageType.Warning);
+                                            }
+                                        }
                                     }
                                 }
                                 EditorGUI.indentLevel--;
@@ -278,7 +323,7 @@ namespace UnityEditor.Timeline
                         dataKeyProperty.stringValue = availableKeys[newIndex];
                     }
                     
-                    if (GUILayout.Button("↻", GUILayout.Width(25)))
+                    if (GUILayout.Button("↻", GUILayout.Width(RefreshButtonWidth)))
                     {
                         EditorUtility.SetDirty(dataManager);
                     }
@@ -304,24 +349,18 @@ namespace UnityEditor.Timeline
             if (dataManager == null)
                 return new string[0];
             
-            try
+            var field = typeof(TimelineDataManager).GetField("dataStorage", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            
+            if (field != null)
             {
-                var field = typeof(TimelineDataManager).GetField("dataStorage", 
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                
-                if (field != null)
+                var dataStorage = field.GetValue(dataManager) as System.Collections.Generic.Dictionary<string, object>;
+                if (dataStorage != null)
                 {
-                    var dataStorage = field.GetValue(dataManager) as System.Collections.Generic.Dictionary<string, object>;
-                    if (dataStorage != null)
-                    {
-                        var keys = new System.Collections.Generic.List<string>(dataStorage.Keys);
-                        keys.Sort();
-                        return keys.ToArray();
-                    }
+                    var keys = new System.Collections.Generic.List<string>(dataStorage.Keys);
+                    keys.Sort();
+                    return keys.ToArray();
                 }
-            }
-            catch (System.Exception)
-            {
             }
             
             return new string[0];
@@ -335,25 +374,107 @@ namespace UnityEditor.Timeline
             if (dataManager == null || string.IsNullOrEmpty(key))
                 return null;
                 
-            try
+            var field = typeof(TimelineDataManager).GetField("dataStorage", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            
+            if (field != null)
             {
-                var field = typeof(TimelineDataManager).GetField("dataStorage", 
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                
-                if (field != null)
+                var dataStorage = field.GetValue(dataManager) as System.Collections.Generic.Dictionary<string, object>;
+                if (dataStorage != null && dataStorage.ContainsKey(key))
                 {
-                    var dataStorage = field.GetValue(dataManager) as System.Collections.Generic.Dictionary<string, object>;
-                    if (dataStorage != null && dataStorage.ContainsKey(key))
-                    {
-                        return dataStorage[key];
-                    }
+                    return dataStorage[key];
                 }
-            }
-            catch (System.Exception)
-            {
             }
             
             return null;
+        }
+
+        /// <summary>
+        /// 绘制 Protobuf 列表索引选择 UI（支持 Numeric 和 DataManager 两种来源）
+        /// </summary>
+        private static void DrawProtobufListIndexGUI(
+            SerializedProperty indexTypeProperty,
+            SerializedProperty indexNumericValueProperty,
+            SerializedProperty indexDataKeyProperty,
+            TimelineDataManager dataManager,
+            int listSize,
+            object[] listValues = null)
+        {
+            // Index data source type selection
+            indexTypeProperty.intValue = EditorGUILayout.Popup("Index Source", indexTypeProperty.intValue, Styles.IndexSourceTypeNames);
+            
+            EditorGUI.indentLevel++;
+            if (indexTypeProperty.intValue == 0) // Numeric
+            {
+                indexNumericValueProperty.intValue = EditorGUILayout.IntField("Index Value", indexNumericValueProperty.intValue);
+                
+                // Clamp index range
+                if (indexNumericValueProperty.intValue < 0)
+                    indexNumericValueProperty.intValue = 0;
+                
+                // Show preview info
+                if (indexNumericValueProperty.intValue >= 0 && indexNumericValueProperty.intValue < listSize)
+                {
+                    if (listValues != null && indexNumericValueProperty.intValue < listValues.Length)
+                    {
+                        // Show value for primitive lists
+                        EditorGUILayout.LabelField($"Value at [{indexNumericValueProperty.intValue}]: {listValues[indexNumericValueProperty.intValue]}", EditorStyles.miniLabel);
+                    }
+                    else
+                    {
+                        // Show validity for object lists
+                        EditorGUILayout.LabelField($"Valid index for list (size: {listSize})", EditorStyles.miniLabel);
+                    }
+                }
+                else
+                {
+                    EditorGUILayout.HelpBox($"Index {indexNumericValueProperty.intValue} out of range (list size: {listSize})", MessageType.Warning);
+                }
+            }
+            else // DataManager
+            {
+                DrawSimpleDataKeyDropdown(indexDataKeyProperty, dataManager);
+                
+                // If index key selected, try to show actual index value
+                if (!string.IsNullOrEmpty(indexDataKeyProperty.stringValue))
+                {
+                    var indexFromData = GetDataManagerValue(dataManager, indexDataKeyProperty.stringValue);
+                    if (indexFromData != null && indexFromData is int actualIndex)
+                    {
+                        EditorGUILayout.LabelField($"Index from DataManager: {actualIndex}", EditorStyles.miniLabel);
+                        
+                        if (actualIndex >= 0 && actualIndex < listSize)
+                        {
+                            if (listValues != null && actualIndex < listValues.Length)
+                            {
+                                // Show value for primitive lists
+                                EditorGUILayout.LabelField($"Value at [{actualIndex}]: {listValues[actualIndex]}", EditorStyles.miniLabel);
+                            }
+                            else
+                            {
+                                // Show validity for object lists
+                                EditorGUILayout.LabelField($"Valid index for list (size: {listSize})", EditorStyles.miniLabel);
+                            }
+                        }
+                        else
+                        {
+                            EditorGUILayout.HelpBox($"Index {actualIndex} out of range (list size: {listSize})", MessageType.Warning);
+                        }
+                    }
+                    else
+                    {
+                        if (indexFromData == null)
+                        {
+                            EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' not found in DataManager", MessageType.Warning);
+                        }
+                        else
+                        {
+                            EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' is not an int (current type: {indexFromData.GetType().Name})", MessageType.Warning);
+                        }
+                    }
+                }
+            }
+            EditorGUI.indentLevel--;
         }
 
         /// <summary>
@@ -523,7 +644,8 @@ namespace UnityEditor.Timeline
                             
                             if (indexNumericValueProperty.intValue < valueInfo.listSize)
                             {
-                                EditorGUILayout.LabelField($"Will modify element at index [{indexNumericValueProperty.intValue}]", EditorStyles.miniLabel);
+                                var currentValue = GetListValueAtIndex(keyValue, indexNumericValueProperty.intValue);
+                                EditorGUILayout.LabelField($"Will modify element at index [{indexNumericValueProperty.intValue}]: {currentValue}", EditorStyles.miniLabel);
                             }
                             else if (indexNumericValueProperty.intValue == valueInfo.listSize)
                             {
@@ -547,11 +669,23 @@ namespace UnityEditor.Timeline
                                     
                                     if (actualIndex < valueInfo.listSize)
                                     {
-                                        EditorGUILayout.LabelField($"Will modify element at index [{actualIndex}]", EditorStyles.miniLabel);
+                                        var currentValue = GetListValueAtIndex(keyValue, actualIndex);
+                                        EditorGUILayout.LabelField($"Will modify element at index [{actualIndex}]: {currentValue}", EditorStyles.miniLabel);
                                     }
                                     else if (actualIndex == valueInfo.listSize)
                                     {
                                         EditorGUILayout.LabelField("Will append new element to list", EditorStyles.miniLabel);
+                                    }
+                                }
+                                else
+                                {
+                                    if (indexFromData == null)
+                                    {
+                                        EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' not found in DataManager", MessageType.Warning);
+                                    }
+                                    else
+                                    {
+                                        EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' is not an int (current type: {indexFromData.GetType().Name})", MessageType.Warning);
                                     }
                                 }
                             }
@@ -607,7 +741,7 @@ namespace UnityEditor.Timeline
             System.Type currentType = currentObject.GetType();
             bool foundListField = false;
             
-            for (int depth = 0; depth < 10 && currentObject != null; depth++) // Max depth of 10 to prevent infinite loops
+            for (int depth = 0; depth < MaxProtobufDepth && currentObject != null; depth++)
             {
                 // Get available fields at current level
                 var availableFields = GetProtobufFieldsAtLevel(currentType, depth == 0);
@@ -628,7 +762,7 @@ namespace UnityEditor.Timeline
                 string label = depth == 0 ? "Protobuf Field" : $"Nested Field";
                 var newIndex = EditorGUILayout.Popup(label, displayIndex, availableFields);
                 
-                if (depth == 0 && GUILayout.Button("↻", GUILayout.Width(25)))
+                if (depth == 0 && GUILayout.Button("↻", GUILayout.Width(RefreshButtonWidth)))
                 {
                     EditorUtility.SetDirty(dataManager);
                 }
@@ -713,33 +847,26 @@ namespace UnityEditor.Timeline
                                 indexDataKeyProperty.stringValue = "";
                             }
                             
-                            // For nested objects in list, show index dropdown (0, 1, 2...)
+                            // For nested objects in list, show index source selection
                             if (fieldInfo.listSize > 0)
                             {
-                                var indexOptions = new string[fieldInfo.listSize];
-                                for (int i = 0; i < fieldInfo.listSize; i++)
-                                {
-                                    indexOptions[i] = i.ToString();
-                                }
+                                DrawProtobufListIndexGUI(
+                                    indexTypeProperty,
+                                    indexNumericValueProperty,
+                                    indexDataKeyProperty,
+                                    dataManager,
+                                    fieldInfo.listSize,
+                                    null  // No values for object lists
+                                );
                                 
-                                // Force index type to Numeric for Protobuf lists
-                                indexTypeProperty.intValue = 0;
+                                // Get the element at the index to continue navigation (use numeric index for preview)
+                                int previewIndex = indexTypeProperty.intValue == 0 ? indexNumericValueProperty.intValue : 0;
                                 
-                                int selectedIndex = indexNumericValueProperty.intValue;
-                                
-                                if (selectedIndex < 0 || selectedIndex >= fieldInfo.listSize)
-                                    selectedIndex = 0;
-                                
-                                selectedIndex = EditorGUILayout.Popup("List Index", selectedIndex, indexOptions);
-                                
-                                indexNumericValueProperty.intValue = selectedIndex;
-                                
-                                // Get the element at the index to continue navigation
                                 var listValue = property.GetValue(currentObject);
                                 var indexer = valueType.GetProperty("Item");
-                                if (indexer != null && selectedIndex >= 0 && selectedIndex < fieldInfo.listSize)
+                                if (indexer != null && previewIndex >= 0 && previewIndex < fieldInfo.listSize)
                                 {
-                                    var elementValue = indexer.GetValue(listValue, new object[] { selectedIndex });
+                                    var elementValue = indexer.GetValue(listValue, new object[] { previewIndex });
                                     if (elementValue != null)
                                     {
                                         currentObject = elementValue;
@@ -795,7 +922,7 @@ namespace UnityEditor.Timeline
                         }
                         else
                         {
-                            // 元素为基础类型 - 显示简单的索引下拉框（带值预览）
+                            // 元素为基础类型 - 支持数值索引或 DataManager 索引
                             if (pathChanged)
                             {
                                 indexTypeProperty.intValue = 0;
@@ -803,27 +930,16 @@ namespace UnityEditor.Timeline
                                 indexDataKeyProperty.stringValue = "";
                             }
                             
-                            // 显示列表元素值的下拉框
                             if (fieldInfo.listSize > 0)
                             {
-                                var indexOptions = new string[fieldInfo.listSize];
-                                for (int i = 0; i < fieldInfo.listSize; i++)
-                                {
-                                    indexOptions[i] = $"{i} ({fieldInfo.listValues[i]})";
-                                }
-                                
-                                // Force index type to Numeric for Protobuf lists
-                                indexTypeProperty.intValue = 0;
-                                
-                                int selectedIndex = indexNumericValueProperty.intValue;
-                                
-                                if (selectedIndex < 0 || selectedIndex >= fieldInfo.listSize)
-                                    selectedIndex = 0;
-                                
-                                selectedIndex = EditorGUILayout.Popup("List Index", selectedIndex, indexOptions);
-                                indexNumericValueProperty.intValue = selectedIndex;
-                                
-                                EditorGUILayout.LabelField($"Selected Value: {fieldInfo.listValues[selectedIndex]}", EditorStyles.miniLabel);
+                                DrawProtobufListIndexGUI(
+                                    indexTypeProperty,
+                                    indexNumericValueProperty,
+                                    indexDataKeyProperty,
+                                    dataManager,
+                                    fieldInfo.listSize,
+                                    fieldInfo.listValues  // Pass values for primitive lists
+                                );
                             }
                             else
                             {
@@ -942,53 +1058,47 @@ namespace UnityEditor.Timeline
             if (protobufObject == null || string.IsNullOrEmpty(fieldName))
                 return info;
 
-            try
+            var type = protobufObject.GetType();
+            var property = type.GetProperty(fieldName);
+            
+            if (property != null)
             {
-                var type = protobufObject.GetType();
-                var property = type.GetProperty(fieldName);
+                info.exists = true;
+                var value = property.GetValue(protobufObject);
                 
-                if (property != null)
+                if (value != null)
                 {
-                    info.exists = true;
-                    var value = property.GetValue(protobufObject);
+                    var valueType = value.GetType();
+                    info.typeName = valueType.Name;
                     
-                    if (value != null)
+                    // 检查是否为 RepeatedField 列表类型
+                    if (valueType.IsGenericType && valueType.GetGenericTypeDefinition().Name.Contains("RepeatedField"))
                     {
-                        var valueType = value.GetType();
-                        info.typeName = valueType.Name;
-                        
-                        // 检查是否为 RepeatedField 列表类型
-                        if (valueType.IsGenericType && valueType.GetGenericTypeDefinition().Name.Contains("RepeatedField"))
+                        info.isList = true;
+                        var countProp = valueType.GetProperty("Count");
+                        if (countProp != null)
                         {
-                            info.isList = true;
-                            var countProp = valueType.GetProperty("Count");
-                            if (countProp != null)
+                            info.listSize = (int)countProp.GetValue(value);
+                            
+                            // 获取列表值（最多预览指定数量）
+                            var listValues = new System.Collections.Generic.List<object>();
+                            var indexer = valueType.GetProperty("Item");
+                            if (indexer != null)
                             {
-                                info.listSize = (int)countProp.GetValue(value);
-                                
-                                // 获取列表值（最多10个）
-                                var listValues = new System.Collections.Generic.List<object>();
-                                var indexer = valueType.GetProperty("Item");
-                                if (indexer != null)
+                                for (int i = 0; i < info.listSize && i < MaxListPreviewCount; i++)
                                 {
-                                    for (int i = 0; i < info.listSize && i < 10; i++)
-                                    {
-                                        listValues.Add(indexer.GetValue(value, new object[] { i }));
-                                    }
+                                    listValues.Add(indexer.GetValue(value, new object[] { i }));
                                 }
-                                info.listValues = listValues.ToArray();
                             }
-                        }
-                        else
-                        {
-                            info.isList = false;
-                            info.value = value;
+                            info.listValues = listValues.ToArray();
                         }
                     }
+                    else
+                    {
+                        info.isList = false;
+                        info.value = value;
+                    }
                 }
-            }
-            catch (System.Exception)
-            {
             }
 
             return info;
