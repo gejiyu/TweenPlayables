@@ -29,7 +29,7 @@ namespace TweenPlayables.Editor
         
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            var height = 9f;
+            var height = 7f;
             
             // 原有参数高度
             foreach (var propertyName in GetPropertyNames())
@@ -38,6 +38,8 @@ namespace TweenPlayables.Editor
                 if (prop != null)
                 {
                     height += EditorGUI.GetPropertyHeight(prop);
+                    height += EditorGUIUtility.standardVerticalSpacing; // GUIHelper.Field 添加的间距
+                    height += 2f; // 额外的间距
                 }
             }
 
