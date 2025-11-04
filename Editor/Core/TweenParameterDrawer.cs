@@ -75,8 +75,22 @@ namespace TweenPlayables.Editor
     {
         public override void DrawProperties(Rect position, SerializedProperty property)
         {
-            DrawTextArea(ref position, property.FindPropertyRelative("startValue"), new GUIContent("Start"));
-            DrawTextArea(ref position, property.FindPropertyRelative("endValue"), new GUIContent("End"));
+            // 使用 StringDataSourceInspectorHelper 绘制数据源配置
+            var startDataSourceProperty = property.FindPropertyRelative("startDataSource");
+            var endDataSourceProperty = property.FindPropertyRelative("endDataSource");
+            
+            if (startDataSourceProperty != null)
+            {
+                position = UnityEditor.Timeline.StringDataSourceInspectorHelper.DrawStringDataSourceGUI(position, startDataSourceProperty, new GUIContent("Start Value"));
+                position.y += EditorGUIUtility.standardVerticalSpacing;
+            }
+            
+            if (endDataSourceProperty != null)
+            {
+                position = UnityEditor.Timeline.StringDataSourceInspectorHelper.DrawStringDataSourceGUI(position, endDataSourceProperty, new GUIContent("End Value"));
+                position.y += EditorGUIUtility.standardVerticalSpacing;
+            }
+            
             GUIHelper.Field(ref position, property.FindPropertyRelative("ease"), "Ease");
 
             SerializedProperty scrambleModeProeprty = property.FindPropertyRelative("scrambleMode");
@@ -93,9 +107,21 @@ namespace TweenPlayables.Editor
             var height = headerHeight;
             if (property.isExpanded)
             {
-                height += (EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing) * 2;
-                height += GetTextAreaHeight(property.FindPropertyRelative("startValue").stringValue);
-                height += GetTextAreaHeight(property.FindPropertyRelative("endValue").stringValue);
+                // StringDataSource 高度
+                var startDataSourceProperty = property.FindPropertyRelative("startDataSource");
+                var endDataSourceProperty = property.FindPropertyRelative("endDataSource");
+                
+                if (startDataSourceProperty != null)
+                {
+                    height += UnityEditor.Timeline.StringDataSourceInspectorHelper.GetStringDataSourceHeight(startDataSourceProperty);
+                    height += EditorGUIUtility.standardVerticalSpacing;
+                }
+                
+                if (endDataSourceProperty != null)
+                {
+                    height += UnityEditor.Timeline.StringDataSourceInspectorHelper.GetStringDataSourceHeight(endDataSourceProperty);
+                    height += EditorGUIUtility.standardVerticalSpacing;
+                }
 
                 GUIHelper.AddPropertyHeight(ref height, property.FindPropertyRelative("ease"));
 
@@ -227,7 +253,13 @@ namespace TweenPlayables.Editor
     {
         public override void DrawProperties(Rect position, SerializedProperty property)
         {
-            DrawTextArea(ref position, property.FindPropertyRelative("changeValue"), new GUIContent("Change Value"));
+            // 使用 StringDataSourceInspectorHelper 绘制数据源配置
+            var dataSourceProperty = property.FindPropertyRelative("dataSource");
+            if (dataSourceProperty != null)
+            {
+                position = UnityEditor.Timeline.StringDataSourceInspectorHelper.DrawStringDataSourceGUI(position, dataSourceProperty, new GUIContent("Change Value"));
+                position.y += EditorGUIUtility.standardVerticalSpacing;
+            }
             
             SerializedProperty scrambleModeProperty = property.FindPropertyRelative("scrambleMode");
             GUIHelper.Field(ref position, scrambleModeProperty, "Scramble Mode");
@@ -243,8 +275,13 @@ namespace TweenPlayables.Editor
             var height = headerHeight;
             if (property.isExpanded)
             {
-                height += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
-                height += GetTextAreaHeight(property.FindPropertyRelative("changeValue").stringValue);
+                // StringDataSource 高度
+                var dataSourceProperty = property.FindPropertyRelative("dataSource");
+                if (dataSourceProperty != null)
+                {
+                    height += UnityEditor.Timeline.StringDataSourceInspectorHelper.GetStringDataSourceHeight(dataSourceProperty);
+                    height += EditorGUIUtility.standardVerticalSpacing;
+                }
 
                 SerializedProperty scrambleModeProperty = property.FindPropertyRelative("scrambleMode");
                 GUIHelper.AddPropertyHeight(ref height, scrambleModeProperty);

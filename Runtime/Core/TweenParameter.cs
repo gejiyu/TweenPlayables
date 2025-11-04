@@ -180,6 +180,10 @@ namespace TweenPlayables
     {
         public ScrambleMode scrambleMode = ScrambleMode.Tween;
         public string customScrambleChars;
+        
+        // 使用 StringDataSource 统一管理数据来源
+        [SerializeField] public StringDataSource startDataSource = new StringDataSource();
+        [SerializeField] public StringDataSource endDataSource = new StringDataSource();
 
         public override string GetRelativeValue(object key, string value)
         {
@@ -188,7 +192,11 @@ namespace TweenPlayables
 
         public override string Evaluate(object key, float t)
         {
-            return StringTweenUtility.TweenText(StartValue, EndValue, t, scrambleMode, customScrambleChars);
+            // 从数据源获取实际的 start 和 end 值
+            string actualStart = startDataSource != null ? startDataSource.GetValue(key) : StartValue;
+            string actualEnd = endDataSource != null ? endDataSource.GetValue(key) : EndValue;
+            
+            return StringTweenUtility.TweenText(actualStart, actualEnd, t, scrambleMode, customScrambleChars);
         }
     }
 
@@ -248,7 +256,18 @@ namespace TweenPlayables
     // ChangeParameter implementations for common types
     [Serializable]
     public sealed class StringChangeParameter : ChangeParameter<string>
-    {}
+    {
+        // 使用 StringDataSource 统一管理数据来源
+        [SerializeField] public StringDataSource dataSource = new StringDataSource();
+        
+        /// <summary>
+        /// 获取实际的字符串值（根据数据源）
+        /// </summary>
+        public string GetActualValue(object dataManagerObject)
+        {
+            return dataSource != null ? dataSource.GetValue(dataManagerObject) : ChangeValue;
+        }
+    }
 
     [Serializable]
     public sealed class Vector3ChangeParameter : ChangeParameter<Vector3>
