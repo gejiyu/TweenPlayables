@@ -39,6 +39,9 @@ namespace TweenPlayables
         public bool IsRelative => relative;
 
         [NonSerialized] readonly Dictionary<object, T> initialValueDictionary = new();
+        
+        // 缓存 TimelineDataManager 引用，用于动态数据源
+        [NonSerialized] protected UnityEngine.Timeline.TimelineDataManager cachedDataManager;
 
         public T GetInitialValue(object key)
         {
@@ -56,6 +59,14 @@ namespace TweenPlayables
             {
                 initialValueDictionary.TryAdd(key, value);
             }
+        }
+        
+        /// <summary>
+        /// 设置 TimelineDataManager 引用，用于动态数据源
+        /// </summary>
+        public void SetDataManager(UnityEngine.Timeline.TimelineDataManager dataManager)
+        {
+            cachedDataManager = dataManager;
         }
     }
 
@@ -78,6 +89,9 @@ namespace TweenPlayables
         public bool IsRelative => relative;
 
         [NonSerialized] readonly Dictionary<object, T> initialValueDictionary = new();
+        
+        // 缓存 TimelineDataManager 引用，用于动态数据源
+        [NonSerialized] protected UnityEngine.Timeline.TimelineDataManager cachedDataManager;
 
         public T GetInitialValue(object key)
         {
@@ -95,6 +109,14 @@ namespace TweenPlayables
             {
                 initialValueDictionary.TryAdd(key, value);
             }
+        }
+        
+        /// <summary>
+        /// 设置 TimelineDataManager 引用，用于动态数据源
+        /// </summary>
+        public void SetDataManager(UnityEngine.Timeline.TimelineDataManager dataManager)
+        {
+            cachedDataManager = dataManager;
         }
     }
 
@@ -193,8 +215,9 @@ namespace TweenPlayables
         public override string Evaluate(object key, float t)
         {
             // 从数据源获取实际的 start 和 end 值
-            string actualStart = startDataSource != null ? startDataSource.GetValue(key) : StartValue;
-            string actualEnd = endDataSource != null ? endDataSource.GetValue(key) : EndValue;
+            // key 参数是 binding（如 UILabel），cachedDataManager 是 TimelineDataManager
+            string actualStart = startDataSource != null ? startDataSource.GetValue(cachedDataManager) : StartValue;
+            string actualEnd = endDataSource != null ? endDataSource.GetValue(cachedDataManager) : EndValue;
             
             return StringTweenUtility.TweenText(actualStart, actualEnd, t, scrambleMode, customScrambleChars);
         }
@@ -263,9 +286,9 @@ namespace TweenPlayables
         /// <summary>
         /// 获取实际的字符串值（根据数据源）
         /// </summary>
-        public string GetActualValue(object dataManagerObject)
+        public string GetActualValue()
         {
-            return dataSource != null ? dataSource.GetValue(dataManagerObject) : ChangeValue;
+            return dataSource != null ? dataSource.GetValue(cachedDataManager) : ChangeValue;
         }
     }
 

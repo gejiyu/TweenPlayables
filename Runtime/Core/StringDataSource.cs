@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 
 namespace TweenPlayables
@@ -87,6 +88,12 @@ namespace TweenPlayables
         /// <returns>解析后的字符串值</returns>
         public string GetValue(object dataManagerObject = null)
         {
+            // 如果没有 DataManager，强制使用 Direct 类型
+            if (dataManagerObject == null && dataType != DataSourceType.Direct)
+            {
+                return directValue ?? "";
+            }
+            
             return StringDataSourceAccessor.GetString(this, dataManagerObject);
         }
     }
@@ -131,6 +138,7 @@ namespace TweenPlayables
                     {
                         int resolvedIndex = GetIndexValue(source.indexType, source.indexNumericValue, source.indexDataKey, dataManagerObject);
                         var protobufObject = GetProtobufObject(dataManagerObject);
+                        
                         if (protobufObject != null)
                         {
                             var value = GetProtobufFieldValue(protobufObject, source.protobufField, resolvedIndex, source.elementField);
@@ -175,6 +183,7 @@ namespace TweenPlayables
             try
             {
                 var type = dataManagerObject.GetType();
+                
                 if (type.Name == "TimelineDataManager")
                 {
                     var getMethod = type.GetMethod("Get");
@@ -185,22 +194,39 @@ namespace TweenPlayables
                         
                         if (result != null)
                         {
-                            // 检查是否是列表类型
-                            if (result is System.Collections.Generic.List<string> stringList)
+                            // 检查是否是列表类型 - 支持任何类型的列表
+                            var resultType = result.GetType();
+                            if (resultType.IsGenericType && resultType.GetGenericTypeDefinition() == typeof(System.Collections.Generic.List<>))
                             {
-                                if (index >= 0 && index < stringList.Count)
-                                    return stringList[index];
+                                // 获取列表的 Count 属性
+                                var countProperty = resultType.GetProperty("Count");
+                                int listSize = countProperty != null ? (int)countProperty.GetValue(result) : 0;
+                                
+                                if (index >= 0 && index < listSize)
+                                {
+                                    // 获取索引器
+                                    var indexer = resultType.GetProperty("Item");
+                                    if (indexer != null)
+                                    {
+                                        var element = indexer.GetValue(result, new object[] { index });
+                                        return element != null ? element.ToString() : defaultValue;
+                                    }
+                                }
                                 return defaultValue;
                             }
-                            else if (result is string[] stringArray)
+                            else if (resultType.IsArray)
                             {
-                                if (index >= 0 && index < stringArray.Length)
-                                    return stringArray[index];
+                                var array = result as Array;
+                                if (index >= 0 && index < array.Length)
+                                {
+                                    var element = array.GetValue(index);
+                                    return element != null ? element.ToString() : defaultValue;
+                                }
                                 return defaultValue;
                             }
                             else
                             {
-                                // 直接返回字符串
+                                // 直接返回转换为字符串
                                 return result.ToString();
                             }
                         }
@@ -209,7 +235,7 @@ namespace TweenPlayables
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"Failed to get string from DataManager: {ex.Message}");
+                Debug.LogWarning($"Failed to get string from DataManager (key: {dataKey}): {ex.Message}");
             }
 
             return defaultValue;
@@ -259,12 +285,21 @@ namespace TweenPlayables
             try
             {
                 var type = dataManagerObject.GetType();
+                
                 if (type.Name == "TimelineDataManager")
                 {
+                    // 先尝试作为 Property
                     var property = type.GetProperty("genericFishDeadSync");
                     if (property != null)
                     {
                         return property.GetValue(dataManagerObject);
+                    }
+                    
+                    // 再尝试作为 Field
+                    var field = type.GetField("genericFishDeadSync");
+                    if (field != null)
+                    {
+                        return field.GetValue(dataManagerObject);
                     }
                 }
             }
@@ -330,6 +365,10 @@ namespace TweenPlayables
                                     }
                                     
                                     return element;
+                                }
+                                else
+                                {
+                                    Debug.LogWarning($"Protobuf list index {listIndex} out of range (0-{listSize-1}) for field '{fieldPath}'");
                                 }
                             }
                             return null;

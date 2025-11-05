@@ -2,27 +2,11 @@ using UnityEngine;
 
 namespace TweenPlayables
 {
+    /// <summary>
+    /// 空的 Mixer，所有逻辑已移至 TweenTransformBehaviour.ProcessFrame。
+    /// </summary>
     public sealed class TweenTransformMixerBehaviour : TweenAnimationMixerBehaviour<Transform, TweenTransformBehaviour>
     {
-        readonly Vector3ValueMixer positionMixer = new();
-        readonly Vector3ValueMixer rotationMixer = new();
-        readonly Vector3ValueMixer scaleMixer = new();
-        readonly Vector3ValueMixer positionChangeMixer = new();
-        readonly Vector3ValueMixer rotationChangeMixer = new();
-        readonly Vector3ValueMixer scaleChangeMixer = new();
-
-        public override void Blend(Transform binding, TweenTransformBehaviour behaviour, float weight, float progress)
-        {
-            positionMixer.TryBlend(behaviour.Position, binding, progress, weight);
-            rotationMixer.TryBlend(behaviour.Rotation, binding, progress, weight);
-            scaleMixer.TryBlend(behaviour.Scale, binding, progress, weight);
-        }
-
-        public override void Apply(Transform binding)
-        {
-            positionMixer.TryApplyAndClear(binding, (x, binding) => binding.localPosition = x);
-            rotationMixer.TryApplyAndClear(binding, (x, binding) => binding.localEulerAngles = x);
-            scaleMixer.TryApplyAndClear(binding, (x, binding) => binding.localScale = x);
-        }
+        // 保留空实现以满足 Timeline Track 的要求
     }
 }

@@ -21,6 +21,10 @@ namespace TweenPlayables
 
         public override void OnTweenInitialize(UILabel playerData)
         {
+            // 设置 DataManager 引用给所有参数
+            text.SetDataManager(cachedDataManager);
+            textChange.SetDataManager(cachedDataManager);
+            
             fontSize.SetInitialValue(playerData, playerData.fontSize);
             text.SetInitialValue(playerData, playerData.text);
             textChange.SetInitialValue(playerData, playerData.text);
@@ -66,6 +70,24 @@ namespace TweenPlayables
                 // binding.bitmapFont = fontAsset as INGUIFont;
                 // GLoadResManager.Instance:ReleaseResource(bitmapFontChange.ChangeValue);
             }
+        }
+
+        public override void ApplyFinalState(UILabel binding)
+        {
+            // 应用所有 Tween 参数的最终值 (progress = 1)
+            if (fontSize.IsActive)
+                binding.fontSize = fontSize.Evaluate(binding, 1f);
+            if (text.IsActive)
+                binding.text = text.Evaluate(binding, 1f);
+        }
+
+        public override void ApplyProgress(UILabel binding, float progress)
+        {
+            // 每帧应用当前进度的值
+            if (fontSize.IsActive)
+                binding.fontSize = fontSize.Evaluate(binding, progress);
+            if (text.IsActive)
+                binding.text = text.Evaluate(binding, progress);
         }
     }
 }

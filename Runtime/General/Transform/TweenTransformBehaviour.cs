@@ -49,5 +49,25 @@ namespace TweenPlayables
             if (scaleChange.IsActive && scaleChange.scrambleMode == ChangeScrambleMode.End)
                 binding.localScale = scaleChange.ChangeValue;
         }
+
+        public override void ApplyProgress(Transform binding, float progress)
+        {
+            if (position.IsActive)
+                binding.localPosition = position.Evaluate(binding, progress);
+            if (rotation.IsActive)
+                binding.localEulerAngles = rotation.Evaluate(binding, progress);
+            if (scale.IsActive)
+                binding.localScale = scale.Evaluate(binding, progress);
+        }
+
+        public override void ApplyFinalState(Transform binding)
+        {
+            if (position.IsActive)
+                binding.localPosition = position.Evaluate(binding, 1f);
+            if (rotation.IsActive)
+                binding.localEulerAngles = rotation.Evaluate(binding, 1f);
+            if (scale.IsActive)
+                binding.localScale = scale.Evaluate(binding, 1f);
+        }
     }
 }

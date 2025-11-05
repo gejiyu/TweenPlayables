@@ -35,5 +35,22 @@ namespace TweenPlayables
                 binding.spriteName = spriteNameChange.ChangeValue;
         }
 
+        public override void ApplyProgress(UISprite binding, float progress)
+        {
+            // 应用当前进度的值
+            if (color.IsActive)
+                binding.color = color.Evaluate(binding, progress);
+            if (fillAmount.IsActive)
+                binding.fillAmount = fillAmount.Evaluate(binding, progress);
+        }
+
+        public override void ApplyFinalState(UISprite binding)
+        {
+            // 应用最终值 (progress = 1)
+            if (color.IsActive)
+                binding.color = color.Evaluate(binding, 1f);
+            if (fillAmount.IsActive)
+                binding.fillAmount = fillAmount.Evaluate(binding, 1f);
+        }
     }
 }
