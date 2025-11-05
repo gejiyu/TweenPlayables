@@ -7,8 +7,6 @@ namespace TweenPlayables
         readonly IntValueMixer fontSizeMixer = new();
 
         string textValue = null;
-        string textChangeValue = null;
-        string bitmapFontChangeValue = null;
 
         public override void Blend(UILabel binding, TweenTextBehaviour behaviour, float weight, float progress)
         {
