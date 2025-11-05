@@ -67,6 +67,21 @@ namespace TweenPlayables
         public string indexDataKey = "";
         
         /// <summary>
+        /// 缓存的 TimelineDataManager 引用（用于 Inspector 和运行时访问）
+        /// </summary>
+        [NonSerialized]
+        public UnityEngine.Timeline.TimelineDataManager cachedDataManager;
+        
+        /// <summary>
+        /// 公开访问 cachedDataManager
+        /// </summary>
+        public UnityEngine.Timeline.TimelineDataManager CachedDataManager
+        {
+            get { return cachedDataManager; }
+            set { cachedDataManager = value; }
+        }
+        
+        /// <summary>
         /// 构造函数
         /// </summary>
         public StringDataSource()
@@ -84,17 +99,16 @@ namespace TweenPlayables
         /// <summary>
         /// 获取实际的字符串值
         /// </summary>
-        /// <param name="dataManagerObject">TimelineDataManager 对象（可选）</param>
         /// <returns>解析后的字符串值</returns>
-        public string GetValue(object dataManagerObject = null)
+        public string GetValue()
         {
             // 如果没有 DataManager，强制使用 Direct 类型
-            if (dataManagerObject == null && dataType != DataSourceType.Direct)
+            if (cachedDataManager == null && dataType != DataSourceType.Direct)
             {
                 return directValue ?? "";
             }
             
-            return StringDataSourceAccessor.GetString(this, dataManagerObject);
+            return StringDataSourceAccessor.GetString(this, cachedDataManager);
         }
     }
 
@@ -103,9 +117,6 @@ namespace TweenPlayables
     /// </summary>
     public static class StringDataSourceAccessor
     {
-        // 缓存 TimelineDataManager 避免重复查找
-        private static UnityEngine.Timeline.TimelineDataManager s_CachedDataManager;
-        
         /// <summary>
         /// 从 StringDataSource 获取字符串值
         /// </summary>
@@ -113,12 +124,6 @@ namespace TweenPlayables
         {
             if (source == null)
                 return "";
-            
-            // 如果需要 DataManager 但没有提供，尝试自动查找
-            if (dataManagerObject == null && (source.dataType == DataSourceType.DataManager || source.dataType == DataSourceType.Protobuf))
-            {
-                dataManagerObject = GetOrFindDataManager(null);
-            }
                 
             switch (source.dataType)
             {
@@ -150,29 +155,6 @@ namespace TweenPlayables
                 default:
                     return source.directValue ?? "";
             }
-        }
-
-        /// <summary>
-        /// 获取或查找 TimelineDataManager
-        /// </summary>
-        private static UnityEngine.Timeline.TimelineDataManager GetOrFindDataManager(object dataManagerObject)
-        {
-            // 如果直接传递了 TimelineDataManager，使用它并缓存
-            if (dataManagerObject is UnityEngine.Timeline.TimelineDataManager manager)
-            {
-                s_CachedDataManager = manager;
-                return manager;
-            }
-            
-            // 否则尝试使用缓存的实例
-            if (s_CachedDataManager != null)
-            {
-                return s_CachedDataManager;
-            }
-            
-            // 最后尝试在场景中查找
-            s_CachedDataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
-            return s_CachedDataManager;
         }
 
         /// <summary>
@@ -408,30 +390,6 @@ namespace TweenPlayables
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// 在场景中查找 TimelineDataManager
-        /// </summary>
-        public static object FindTimelineDataManager()
-        {
-            try
-            {
-                var allObjects = UnityEngine.Object.FindObjectsOfType<UnityEngine.Component>();
-                foreach (var obj in allObjects)
-                {
-                    if (obj.GetType().Name == "TimelineDataManager")
-                    {
-                        return obj;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"Failed to find TimelineDataManager: {ex.Message}");
-            }
-
-            return null;
         }
     }
 }

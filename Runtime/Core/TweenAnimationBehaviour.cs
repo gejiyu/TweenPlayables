@@ -29,9 +29,9 @@ namespace TweenPlayables
         public override void ProcessFrame(Playable playable, FrameData info, object playerData)
         {
             // 自动初始化
-            if (!initialized && playerData is TBinding targetBinding)
+            if (!initialized && playerData is TBinding target)
             {
-                Initialize(targetBinding);
+                Initialize(target);
             }
             
             if (binding == null) return;

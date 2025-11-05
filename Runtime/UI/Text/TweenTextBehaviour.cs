@@ -21,7 +21,7 @@ namespace TweenPlayables
 
         public override void OnTweenInitialize(UILabel playerData)
         {
-            // 设置 DataManager 引用给所有参数
+            // 设置 DataManager 引用给所有参数（会自动传递给内部的 StringDataSource）
             text.SetDataManager(cachedDataManager);
             textChange.SetDataManager(cachedDataManager);
             

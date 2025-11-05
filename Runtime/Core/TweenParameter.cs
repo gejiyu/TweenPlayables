@@ -67,6 +67,21 @@ namespace TweenPlayables
         public void SetDataManager(UnityEngine.Timeline.TimelineDataManager dataManager)
         {
             cachedDataManager = dataManager;
+            
+            var type = this.GetType();
+            var fields = type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            
+            foreach (var field in fields)
+            {
+                if (field.FieldType == typeof(StringDataSource))
+                {
+                    var dataSource = field.GetValue(this) as StringDataSource;
+                    if (dataSource != null)
+                    {
+                        dataSource.CachedDataManager = dataManager;
+                    }
+                }
+            }
         }
     }
 
@@ -113,10 +128,27 @@ namespace TweenPlayables
         
         /// <summary>
         /// 设置 TimelineDataManager 引用，用于动态数据源
+        /// 同时自动查找并设置类中所有 StringDataSource 的 DataManager
         /// </summary>
         public void SetDataManager(UnityEngine.Timeline.TimelineDataManager dataManager)
         {
             cachedDataManager = dataManager;
+            
+            // 使用反射查找所有 StringDataSource 字段并设置 DataManager
+            var type = this.GetType();
+            var fields = type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            
+            foreach (var field in fields)
+            {
+                if (field.FieldType == typeof(StringDataSource))
+                {
+                    var dataSource = field.GetValue(this) as StringDataSource;
+                    if (dataSource != null)
+                    {
+                        dataSource.CachedDataManager = dataManager;
+                    }
+                }
+            }
         }
     }
 
@@ -215,9 +247,8 @@ namespace TweenPlayables
         public override string Evaluate(object key, float t)
         {
             // 从数据源获取实际的 start 和 end 值
-            // key 参数是 binding（如 UILabel），cachedDataManager 是 TimelineDataManager
-            string actualStart = startDataSource != null ? startDataSource.GetValue(cachedDataManager) : StartValue;
-            string actualEnd = endDataSource != null ? endDataSource.GetValue(cachedDataManager) : EndValue;
+            string actualStart = startDataSource != null ? startDataSource.GetValue() : StartValue;
+            string actualEnd = endDataSource != null ? endDataSource.GetValue() : EndValue;
             
             return StringTweenUtility.TweenText(actualStart, actualEnd, t, scrambleMode, customScrambleChars);
         }
@@ -288,7 +319,7 @@ namespace TweenPlayables
         /// </summary>
         public string GetActualValue()
         {
-            return dataSource != null ? dataSource.GetValue(cachedDataManager) : ChangeValue;
+            return dataSource != null ? dataSource.GetValue() : ChangeValue;
         }
     }
 
