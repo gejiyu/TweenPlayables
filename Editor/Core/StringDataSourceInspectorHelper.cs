@@ -28,15 +28,6 @@ namespace UnityEditor.Timeline
         }
 
         /// <summary>
-        /// 从场景中获取 TimelineDataManager
-        /// </summary>
-        private static UnityEngine.Timeline.TimelineDataManager GetDataManagerFromProperty(SerializedProperty property)
-        {
-            // 直接从场景中查找 TimelineDataManager
-            return UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
-        }
-
-        /// <summary>
         /// 绘制紧凑版 StringDataSource UI（用于 PropertyDrawer）
         /// </summary>
         /// <param name="position">绘制区域</param>
@@ -47,9 +38,6 @@ namespace UnityEditor.Timeline
         {
             if (property == null)
                 return position;
-
-            // 从 property 对应的 StringDataSource 对象中获取 dataManager
-            var dataManager = GetDataManagerFromProperty(property);
 
             var dataTypeProperty = property.FindPropertyRelative("dataType");
             var directValueProperty = property.FindPropertyRelative("directValue");
@@ -89,25 +77,25 @@ namespace UnityEditor.Timeline
                     break;
 
                 case 1: // DataManager
-                    currentRect = DrawDataManagerKeyDropdown(currentRect, dataKeyProperty, indexTypeProperty, indexNumericValueProperty, indexDataKeyProperty, dataManager, lineHeight, spacing);
+                    currentRect = DrawDataManagerKeyDropdown(currentRect, dataKeyProperty, indexTypeProperty, indexNumericValueProperty, indexDataKeyProperty, lineHeight, spacing);
                     break;
 
                 case 2: // Protobuf
-                    currentRect = DrawProtobufFieldDropdown(currentRect, protobufFieldProperty, dataManager, lineHeight, spacing);
+                    currentRect = DrawProtobufFieldDropdown(currentRect, protobufFieldProperty, lineHeight, spacing);
                     // 只有当 Protobuf 字段是列表时才显示索引配置
-                    if (IsProtobufFieldList(protobufFieldProperty.stringValue, dataManager))
+                    if (IsProtobufFieldList(protobufFieldProperty.stringValue))
                     {
-                        currentRect = DrawIndexGUI(currentRect, indexTypeProperty, indexNumericValueProperty, indexDataKeyProperty, dataManager, lineHeight, spacing);
+                        currentRect = DrawIndexGUI(currentRect, indexTypeProperty, indexNumericValueProperty, indexDataKeyProperty, lineHeight, spacing);
                         
                         // 如果 List 元素是 Protobuf Message，显示元素字段选择
-                        if (IsProtobufListElementMessage(protobufFieldProperty.stringValue, dataManager))
+                        if (IsProtobufListElementMessage(protobufFieldProperty.stringValue))
                         {
-                            currentRect = DrawElementFieldDropdown(currentRect, protobufFieldProperty.stringValue, elementFieldProperty, dataManager, lineHeight, spacing);
+                            currentRect = DrawElementFieldDropdown(currentRect, protobufFieldProperty.stringValue, elementFieldProperty, lineHeight, spacing);
                         }
                         
                         // 显示索引后的最终值
                         currentRect = DrawProtobufFinalValue(currentRect, protobufFieldProperty.stringValue, elementFieldProperty.stringValue,
-                                                            indexTypeProperty.intValue, indexNumericValueProperty.intValue, indexDataKeyProperty.stringValue, dataManager, lineHeight, spacing);
+                                                            indexTypeProperty.intValue, indexNumericValueProperty.intValue, indexDataKeyProperty.stringValue, lineHeight, spacing);
                     }
                     break;
             }
@@ -122,7 +110,7 @@ namespace UnityEditor.Timeline
         /// <summary>
         /// 绘制索引配置 UI（Rect 版本，用于 Protobuf）
         /// </summary>
-        private static Rect DrawIndexGUI(Rect currentRect, SerializedProperty indexTypeProperty, SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty, UnityEngine.Timeline.TimelineDataManager dataManager, float lineHeight, float spacing)
+        private static Rect DrawIndexGUI(Rect currentRect, SerializedProperty indexTypeProperty, SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty, float lineHeight, float spacing)
         {
             var labelWidth = EditorGUIUtility.labelWidth;
             var labelRect = new Rect(currentRect.x, currentRect.y, labelWidth, lineHeight);
@@ -139,7 +127,7 @@ namespace UnityEditor.Timeline
             }
             else if (indexTypeProperty.intValue == 1) // DataManager
             {
-                currentRect = DrawSimpleDataKeyDropdown(currentRect, indexDataKeyProperty, dataManager, lineHeight, spacing);
+                currentRect = DrawSimpleDataKeyDropdown(currentRect, indexDataKeyProperty, lineHeight, spacing);
             }
             
             return currentRect;
@@ -153,8 +141,8 @@ namespace UnityEditor.Timeline
             if (property == null)
                 return 0;
 
-            // 从 property 对应的 StringDataSource 对象中获取 dataManager
-            var dataManager = GetDataManagerFromProperty(property);
+            // 从场景中查找 dataManager
+            var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
 
             float lineHeight = EditorGUIUtility.singleLineHeight;
             float spacing = EditorGUIUtility.standardVerticalSpacing;
@@ -185,7 +173,7 @@ namespace UnityEditor.Timeline
                 {
                     if (dataManager != null)
                     {
-                        var keyValue = GetDataManagerValue(dataManager, dataKeyProperty.stringValue);
+                        var keyValue = GetDataManagerValue(dataKeyProperty.stringValue);
                         if (keyValue != null)
                         {
                             // Type: xxx
@@ -215,7 +203,7 @@ namespace UnityEditor.Timeline
                                     
                                     if (!string.IsNullOrEmpty(indexDataKeyProperty.stringValue))
                                     {
-                                        var indexKeyValue = GetDataManagerValue(dataManager, indexDataKeyProperty.stringValue);
+                                        var indexKeyValue = GetDataManagerValue(indexDataKeyProperty.stringValue);
                                         if (indexKeyValue != null)
                                         {
                                             // Index Key Value display
@@ -249,11 +237,11 @@ namespace UnityEditor.Timeline
                 var elementFieldProperty = property.FindPropertyRelative("elementField");
                 
                 // 计算 Protobuf 字段导航的实际高度
-                int protobufLines = CalculateProtobufFieldHeight(protobufFieldProperty.stringValue, dataManager);
+                int protobufLines = CalculateProtobufFieldHeight(protobufFieldProperty.stringValue);
                 totalHeight += (lineHeight + spacing) * protobufLines;
                 
                 // 如果是列表类型，还需要索引配置的高度
-                if (IsProtobufFieldList(protobufFieldProperty.stringValue, dataManager))
+                if (IsProtobufFieldList(protobufFieldProperty.stringValue))
                 {
                     // Index Source dropdown
                     totalHeight += (lineHeight + spacing);
@@ -273,7 +261,7 @@ namespace UnityEditor.Timeline
                         {
                             if (dataManager != null)
                             {
-                                var keyValue = GetDataManagerValue(dataManager, indexDataKeyProperty.stringValue);
+                                var keyValue = GetDataManagerValue(indexDataKeyProperty.stringValue);
                                 if (keyValue != null)
                                 {
                                     totalHeight += (lineHeight + spacing); // Index Key Value
@@ -283,7 +271,7 @@ namespace UnityEditor.Timeline
                     }
                     
                     // 如果 List 元素是 Protobuf Message，添加 Element Field 选择的高度
-                    if (IsProtobufListElementMessage(protobufFieldProperty.stringValue, dataManager))
+                    if (IsProtobufListElementMessage(protobufFieldProperty.stringValue))
                     {
                         totalHeight += (lineHeight + spacing); // Element Field dropdown
                     }
@@ -299,8 +287,9 @@ namespace UnityEditor.Timeline
         /// <summary>
         /// 计算 Protobuf 字段导航需要的行数
         /// </summary>
-        private static int CalculateProtobufFieldHeight(string fieldPath, UnityEngine.Timeline.TimelineDataManager dataManager)
+        private static int CalculateProtobufFieldHeight(string fieldPath)
         {
+            var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
             if (dataManager == null || dataManager.genericFishDeadSync == null)
             {
                 return 1; // 只显示一个输入框
@@ -390,11 +379,12 @@ namespace UnityEditor.Timeline
         /// </summary>
         private static Rect DrawDataManagerKeyDropdown(Rect currentRect, SerializedProperty dataKeyProperty, 
                                                       SerializedProperty indexTypeProperty, SerializedProperty indexNumericValueProperty, 
-                                                      SerializedProperty indexDataKeyProperty, UnityEngine.Timeline.TimelineDataManager dataManager, float lineHeight, float spacing)
+                                                      SerializedProperty indexDataKeyProperty, float lineHeight, float spacing)
         {
+            var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
             if (dataManager != null)
             {
-                var availableKeys = GetAvailableDataKeys(dataManager);
+                var availableKeys = GetAvailableDataKeys();
                 if (availableKeys != null && availableKeys.Length > 0)
                 {
                     var currentKey = dataKeyProperty.stringValue;
@@ -425,7 +415,7 @@ namespace UnityEditor.Timeline
                     // 显示当前选中key的值和类型信息
                     if (!string.IsNullOrEmpty(currentKey))
                     {
-                        var keyValue = GetDataManagerValue(dataManager, currentKey);
+                        var keyValue = GetDataManagerValue(currentKey);
                         if (keyValue != null)
                         {
                             var valueInfo = GetValueTypeInfo(keyValue);
@@ -469,12 +459,12 @@ namespace UnityEditor.Timeline
                                 else // DataManager
                                 {
                                     // 索引键选择（简化版，不需要递归处理）
-                                    currentRect = DrawSimpleDataKeyDropdown(currentRect, indexDataKeyProperty, dataManager, lineHeight, spacing);
+                                    currentRect = DrawSimpleDataKeyDropdown(currentRect, indexDataKeyProperty, lineHeight, spacing);
                                     
                                     // 如果选择了索引键，尝试显示实际索引值和对应的列表值
                                     if (!string.IsNullOrEmpty(indexDataKeyProperty.stringValue))
                                     {
-                                        var indexFromData = GetDataManagerValue(dataManager, indexDataKeyProperty.stringValue);
+                                        var indexFromData = GetDataManagerValue(indexDataKeyProperty.stringValue);
                                         if (indexFromData != null && indexFromData is int actualIndex)
                                         {
                                             EditorGUI.LabelField(currentRect, $"Index from DataManager: {actualIndex}", EditorStyles.miniLabel);
@@ -523,11 +513,12 @@ namespace UnityEditor.Timeline
         /// <summary>
         /// 简化版数据键下拉选择（用于索引键选择，Rect 版本）
         /// </summary>
-        private static Rect DrawSimpleDataKeyDropdown(Rect currentRect, SerializedProperty dataKeyProperty, UnityEngine.Timeline.TimelineDataManager dataManager, float lineHeight, float spacing)
+        private static Rect DrawSimpleDataKeyDropdown(Rect currentRect, SerializedProperty dataKeyProperty, float lineHeight, float spacing)
         {
+            var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
             if (dataManager != null)
             {
-                var availableKeys = GetAvailableDataKeys(dataManager);
+                var availableKeys = GetAvailableDataKeys();
                 if (availableKeys.Length > 0)
                 {
                     var currentKey = dataKeyProperty.stringValue;
@@ -563,7 +554,7 @@ namespace UnityEditor.Timeline
                     // 显示当前选中索引键的值
                     if (!string.IsNullOrEmpty(dataKeyProperty.stringValue))
                     {
-                        var keyValue = GetDataManagerValue(dataManager, dataKeyProperty.stringValue);
+                        var keyValue = GetDataManagerValue(dataKeyProperty.stringValue);
                         if (keyValue != null)
                         {
                             EditorGUI.LabelField(currentRect, $"Index Key Value: {keyValue}", EditorStyles.miniLabel);
@@ -589,8 +580,9 @@ namespace UnityEditor.Timeline
         /// <summary>
         /// 从 TimelineDataManager 获取所有可用的数据键列表
         /// </summary>
-        private static string[] GetAvailableDataKeys(UnityEngine.Timeline.TimelineDataManager dataManager)
+        private static string[] GetAvailableDataKeys()
         {
+            var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
             if (dataManager == null)
                 return new string[0];
             
@@ -679,8 +671,9 @@ namespace UnityEditor.Timeline
         /// <summary>
         /// 从 TimelineDataManager 获取指定键的值
         /// </summary>
-        private static object GetDataManagerValue(UnityEngine.Timeline.TimelineDataManager dataManager, string key)
+        private static object GetDataManagerValue(string key)
         {
+            var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
             if (dataManager == null || string.IsNullOrEmpty(key))
                 return null;
             
@@ -739,8 +732,9 @@ namespace UnityEditor.Timeline
         /// <summary>
         /// 绘制 Protobuf 字段下拉选择（Rect 版本，支持多层级导航）
         /// </summary>
-        private static Rect DrawProtobufFieldDropdown(Rect currentRect, SerializedProperty protobufFieldProperty, UnityEngine.Timeline.TimelineDataManager dataManager, float lineHeight, float spacing)
+        private static Rect DrawProtobufFieldDropdown(Rect currentRect, SerializedProperty protobufFieldProperty, float lineHeight, float spacing)
         {
+            var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
             if (dataManager == null || dataManager.genericFishDeadSync == null)
             {
                 EditorGUI.PropertyField(currentRect, protobufFieldProperty, Styles.ProtobufField);
@@ -906,8 +900,9 @@ namespace UnityEditor.Timeline
         /// 绘制 Protobuf 索引后的最终值（Rect 版本）
         /// </summary>
         private static Rect DrawProtobufFinalValue(Rect currentRect, string fieldPath, string elementField, int indexType, 
-                                                   int indexNumericValue, string indexDataKey, UnityEngine.Timeline.TimelineDataManager dataManager, float lineHeight, float spacing)
+                                                   int indexNumericValue, string indexDataKey, float lineHeight, float spacing)
         {
+            var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
             if (dataManager == null || string.IsNullOrEmpty(fieldPath))
                 return currentRect;
             
@@ -939,7 +934,7 @@ namespace UnityEditor.Timeline
                 }
                 else // DataManager
                 {
-                    var indexValue = GetDataManagerValue(dataManager, indexDataKey);
+                    var indexValue = GetDataManagerValue(indexDataKey);
                     if (indexValue != null)
                     {
                         // 尝试转换为 int
@@ -1133,8 +1128,9 @@ namespace UnityEditor.Timeline
         /// <summary>
         /// 检查 Protobuf List 的元素是否为 Protobuf Message 类型
         /// </summary>
-        private static bool IsProtobufListElementMessage(string listFieldPath, UnityEngine.Timeline.TimelineDataManager dataManager)
+        private static bool IsProtobufListElementMessage(string listFieldPath)
         {
+            var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
             if (string.IsNullOrEmpty(listFieldPath))
                 return false;
             
@@ -1192,8 +1188,9 @@ namespace UnityEditor.Timeline
         /// <summary>
         /// 绘制 List 元素字段下拉选择（Rect 版本）
         /// </summary>
-        private static Rect DrawElementFieldDropdown(Rect currentRect, string listFieldPath, SerializedProperty elementFieldProperty, UnityEngine.Timeline.TimelineDataManager dataManager, float lineHeight, float spacing)
+        private static Rect DrawElementFieldDropdown(Rect currentRect, string listFieldPath, SerializedProperty elementFieldProperty, float lineHeight, float spacing)
         {
+            var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
             if (dataManager == null || dataManager.genericFishDeadSync == null)
             {
                 EditorGUI.PropertyField(currentRect, elementFieldProperty, new GUIContent("Element Field"));
@@ -1297,8 +1294,9 @@ namespace UnityEditor.Timeline
         /// <summary>
         /// 检查 Protobuf 字段路径最终是否指向列表类型
         /// </summary>
-        private static bool IsProtobufFieldList(string fieldPath, UnityEngine.Timeline.TimelineDataManager dataManager)
+        private static bool IsProtobufFieldList(string fieldPath)
         {
+            var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
             if (string.IsNullOrEmpty(fieldPath))
                 return false;
             
