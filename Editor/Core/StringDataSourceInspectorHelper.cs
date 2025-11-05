@@ -116,23 +116,22 @@ namespace UnityEditor.Timeline
             float spacing = EditorGUIUtility.standardVerticalSpacing;
             Rect currentRect = new Rect(position.x, position.y, position.width, lineHeight);
 
-            // 标签
-            EditorGUI.LabelField(currentRect, label, EditorStyles.boldLabel);
-            currentRect.y += lineHeight + spacing;
-
-            // 数据源类型
-            currentRect.x += 15;
-            currentRect.width -= 15;
-            
-            // 使用 EditorGUI.IntPopup 来显示带标签的 Popup
+            // 使用 PropertyField 样式：标签在左，控件在右
             var labelWidth = EditorGUIUtility.labelWidth;
-            var labelRect = new Rect(currentRect.x, currentRect.y, labelWidth, lineHeight);
-            var popupRect = new Rect(currentRect.x + labelWidth, currentRect.y, currentRect.width - labelWidth, lineHeight);
             
-            EditorGUI.LabelField(labelRect, Styles.DataType);
-            dataTypeProperty.intValue = EditorGUI.Popup(popupRect, dataTypeProperty.intValue, Styles.DataSourceTypeNames);
+            // 第一行：主标签 + 数据源类型下拉框
+            var labelRect = new Rect(currentRect.x, currentRect.y, labelWidth, lineHeight);
+            var controlRect = new Rect(currentRect.x + labelWidth, currentRect.y, currentRect.width - labelWidth, lineHeight);
+            
+            EditorGUI.LabelField(labelRect, label);
+            dataTypeProperty.intValue = EditorGUI.Popup(controlRect, dataTypeProperty.intValue, Styles.DataSourceTypeNames);
             currentRect.y += lineHeight + spacing;
 
+            // 后续字段需要缩进
+            float indentOffset = 15f;
+            currentRect.x += indentOffset;
+            currentRect.width -= indentOffset;
+            
             // 根据类型显示字段
             switch (dataTypeProperty.intValue)
             {
@@ -164,6 +163,10 @@ namespace UnityEditor.Timeline
                     }
                     break;
             }
+            
+            // 恢复原始位置
+            currentRect.x -= indentOffset;
+            currentRect.width += indentOffset;
             
             return currentRect;
         }
@@ -226,23 +229,86 @@ namespace UnityEditor.Timeline
             float totalHeight = 0;
 
             var dataTypeProperty = property.FindPropertyRelative("dataType");
+            var indexTypeProperty = property.FindPropertyRelative("indexType");
+            var indexDataKeyProperty = property.FindPropertyRelative("indexDataKey");
             
-            // 标签 + 数据类型 + 值字段
-            totalHeight += (lineHeight + spacing) * 3;
+            // 主标签+数据类型（合并为一行）
+            totalHeight += (lineHeight + spacing);
 
+            // 根据数据类型计算额外高度
+            if (dataTypeProperty.intValue == 0) // Direct
+            {
+                // Direct Value field
+                totalHeight += (lineHeight + spacing);
+            }
             // DataManager: 检查是否为列表
-            if (dataTypeProperty.intValue == 1) // DataManager
+            else if (dataTypeProperty.intValue == 1) // DataManager
             {
                 var dataKeyProperty = property.FindPropertyRelative("dataKey");
-                if (IsDataManagerValueList(dataKeyProperty.stringValue))
+                
+                // Data Key dropdown
+                totalHeight += (lineHeight + spacing);
+                
+                if (!string.IsNullOrEmpty(dataKeyProperty.stringValue))
                 {
-                    // 索引类型 + 索引值 + Current Value label
-                    totalHeight += (lineHeight + spacing) * 3;
-                }
-                else if (!string.IsNullOrEmpty(dataKeyProperty.stringValue))
-                {
-                    // 显示当前值的 label
-                    totalHeight += (lineHeight + spacing);
+                    var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
+                    if (dataManager != null)
+                    {
+                        var keyValue = GetDataManagerValue(dataManager, dataKeyProperty.stringValue);
+                        if (keyValue != null)
+                        {
+                            // Type: xxx
+                            totalHeight += (lineHeight + spacing);
+                            
+                            var valueInfo = GetValueTypeInfo(keyValue);
+                            if (valueInfo.isList)
+                            {
+                                // List Size: xxx
+                                totalHeight += (lineHeight + spacing);
+                                
+                                // Index Source dropdown
+                                totalHeight += (lineHeight + spacing);
+                                
+                                if (indexTypeProperty.intValue == 0) // Numeric
+                                {
+                                    // Index Value field
+                                    totalHeight += (lineHeight + spacing);
+                                    
+                                    // Value at [x]: xxx
+                                    totalHeight += (lineHeight + spacing);
+                                }
+                                else if (indexTypeProperty.intValue == 1) // DataManager
+                                {
+                                    // Index Key dropdown (来自DrawSimpleDataKeyDropdown)
+                                    totalHeight += (lineHeight + spacing);
+                                    
+                                    if (!string.IsNullOrEmpty(indexDataKeyProperty.stringValue))
+                                    {
+                                        var indexKeyValue = GetDataManagerValue(dataManager, indexDataKeyProperty.stringValue);
+                                        if (indexKeyValue != null)
+                                        {
+                                            // Index Key Value display
+                                            totalHeight += (lineHeight + spacing);
+                                        }
+                                        
+                                        if (indexKeyValue is int)
+                                        {
+                                            // Index from DataManager: xxx
+                                            totalHeight += (lineHeight + spacing);
+                                            
+                                            // Value at [x]: xxx 或 Index out of range
+                                            totalHeight += (lineHeight + spacing);
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // Current Value: xxx
+                                totalHeight += (lineHeight + spacing);
+                            }
+                        }
+                    }
                 }
             }
             // Protobuf: 需要计算多层级导航的高度
@@ -250,8 +316,6 @@ namespace UnityEditor.Timeline
             {
                 var protobufFieldProperty = property.FindPropertyRelative("protobufField");
                 var elementFieldProperty = property.FindPropertyRelative("elementField");
-                var indexTypeProperty = property.FindPropertyRelative("indexType");
-                var indexDataKeyProperty = property.FindPropertyRelative("indexDataKey");
                 
                 // 计算 Protobuf 字段导航的实际高度
                 int protobufLines = CalculateProtobufFieldHeight(protobufFieldProperty.stringValue);
@@ -260,19 +324,30 @@ namespace UnityEditor.Timeline
                 // 如果是列表类型，还需要索引配置的高度
                 if (IsProtobufFieldList(protobufFieldProperty.stringValue))
                 {
-                    // 索引类型 + 索引值
-                    totalHeight += (lineHeight + spacing) * 2;
+                    // Index Source dropdown
+                    totalHeight += (lineHeight + spacing);
                     
-                    // 如果 index source 是 DataManager 且选择了 key，需要额外一行显示 Index Key Value
-                    if (indexTypeProperty.intValue == 1 && !string.IsNullOrEmpty(indexDataKeyProperty.stringValue))
+                    if (indexTypeProperty.intValue == 0) // Numeric
                     {
-                        var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
-                        if (dataManager != null)
+                        // Index value field
+                        totalHeight += (lineHeight + spacing);
+                    }
+                    else if (indexTypeProperty.intValue == 1) // DataManager
+                    {
+                        // Index Key dropdown
+                        totalHeight += (lineHeight + spacing);
+                        
+                        // 如果选择了 Index Key，显示 Index Key Value
+                        if (!string.IsNullOrEmpty(indexDataKeyProperty.stringValue))
                         {
-                            var keyValue = GetDataManagerValue(dataManager, indexDataKeyProperty.stringValue);
-                            if (keyValue != null)
+                            var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
+                            if (dataManager != null)
                             {
-                                totalHeight += (lineHeight + spacing); // Index Key Value
+                                var keyValue = GetDataManagerValue(dataManager, indexDataKeyProperty.stringValue);
+                                if (keyValue != null)
+                                {
+                                    totalHeight += (lineHeight + spacing); // Index Key Value
+                                }
                             }
                         }
                     }
