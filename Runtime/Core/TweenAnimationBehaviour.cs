@@ -31,7 +31,7 @@ namespace TweenPlayables
             // 自动初始化
             if (!initialized && playerData is TBinding target)
             {
-                Initialize(target);
+                Initialize(target, playable);
             }
             
             if (binding == null) return;
@@ -60,7 +60,7 @@ namespace TweenPlayables
             }
         }
 
-        internal void Initialize(TBinding playerData)
+        internal void Initialize(TBinding playerData, Playable playable)
         {
             if (playerData == null) return;
             if (initialized) return;
@@ -70,7 +70,22 @@ namespace TweenPlayables
             // 尝试查找并缓存 TimelineDataManager
             if (cachedDataManager == null)
             {
-                cachedDataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
+                // 获取当前 PlayableDirector 下的 TimelineDataManager
+                var graph = playable.GetGraph();
+                var resolver = graph.GetResolver();
+                if (resolver is UnityEngine.Playables.PlayableDirector director)
+                {
+                    // 先从 PlayableDirector 的 bindings 中查找 TimelineDataManager
+                    foreach (var binding in director.playableAsset.outputs)
+                    {
+                        var boundObject = director.GetGenericBinding(binding.sourceObject);
+                        if (boundObject is UnityEngine.Timeline.TimelineDataManager dataManager)
+                        {
+                            cachedDataManager = dataManager;
+                            break;
+                        }
+                    }
+                }
             }
             
             OnTweenInitialize(playerData);

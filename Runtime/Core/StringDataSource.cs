@@ -60,17 +60,18 @@ namespace TweenPlayables
         /// 数值索引（当 indexType = Direct 时使用）
         /// </summary>
         public int indexNumericValue = 0;
-        
+
         /// <summary>
         /// 索引数据键（当 indexType = DataManager 时使用）
         /// </summary>
         public string indexDataKey = "";
         
         /// <summary>
-        /// 缓存的 TimelineDataManager 引用（用于 Inspector 和运行时访问）
+        /// 缓存的 TimelineDataManager 引用（运行时通过 TweenAnimationBehaviour 传入）
+        /// Timeline 资产不能直接引用场景对象，所以不序列化
         /// </summary>
         [NonSerialized]
-        public UnityEngine.Timeline.TimelineDataManager cachedDataManager;
+        private UnityEngine.Timeline.TimelineDataManager cachedDataManager;
         
         /// <summary>
         /// 公开访问 cachedDataManager
