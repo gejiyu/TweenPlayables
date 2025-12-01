@@ -7,6 +7,7 @@ using UnityEngine.Timeline;
 namespace TweenPlayables
 {
     [TrackClipType(typeof(TweenEventClip))]
+    [TrackColor(0.6f, 0.15f, 0.15f)]
 #if UNITY_EDITOR
     [DisplayName("Tween Playables/General/Event")]
 #endif

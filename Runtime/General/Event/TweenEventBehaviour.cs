@@ -7,40 +7,49 @@ namespace TweenPlayables
     [Serializable]
     public sealed class TweenEventBehaviour : TweenAnimationBehaviour<Transform>
     {
-        [SerializeField] StringChangeParameter startEventName;
-        [SerializeField] StringChangeParameter endEventName;
+        [SerializeField] StringChangeParameter eventName;
 
-        public ReadOnlyChangeParameter<string> StartEventName => startEventName;
-        public ReadOnlyChangeParameter<string> EndEventName => endEventName;
+        public ReadOnlyChangeParameter<string> EventName => eventName;
 
         public override void OnTweenInitialize(Transform playerData)
         {
-            startEventName.SetInitialValue(playerData, "");
-            endEventName.SetInitialValue(playerData, "");
+            eventName.SetInitialValue(playerData, "");
         }
 
         public override void OnTweenStarted(Transform binding, TweenAnimationBehaviour<Transform> behaviour, Playable playable, FrameData info)
         {
-            if (startEventName.IsActive && startEventName.scrambleMode == ChangeScrambleMode.Start)
+            if (eventName.IsActive && eventName.scrambleMode == ChangeScrambleMode.Start)
             {
-                string eventName = startEventName.ChangeValue;
-                if (!string.IsNullOrEmpty(eventName))
+                string names = eventName.ChangeValue;
+                if (!string.IsNullOrEmpty(names))
                 {
-                    GEventCtrl.TriggerEvent(eventName);
-                    Debug.Log($"[TweenEvent] 触发开始事件: {eventName} on {binding.name}");
+                    TriggerEvents(names);
                 }
             }
         }
 
         public override void OnTweenFinished(Transform binding, TweenAnimationBehaviour<Transform> behaviour, Playable playable, FrameData info)
         {
-            if (endEventName.IsActive && endEventName.scrambleMode == ChangeScrambleMode.End)
+            if (eventName.IsActive && eventName.scrambleMode == ChangeScrambleMode.End)
             {
-                string eventName = endEventName.ChangeValue;
-                if (!string.IsNullOrEmpty(eventName))
+                string names = eventName.ChangeValue;
+                if (!string.IsNullOrEmpty(names))
                 {
-                    GEventCtrl.TriggerEvent(eventName);
-                    Debug.Log($"[TweenEvent] 触发结束事件: {eventName} on {binding.name}");
+                    TriggerEvents(names);
+                }
+            }
+        }
+
+        private void TriggerEvents(string eventNames)
+        {
+            string[] events = eventNames.Split(new char[] { ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string evt in events)
+            {
+                string trimmedEvent = evt.Trim();
+                if (!string.IsNullOrEmpty(trimmedEvent))
+                {
+                    GEventCtrl.TriggerEvent(trimmedEvent);
+                    Debug.Log($"[TweenEvent] 触发事件: {trimmedEvent}");
                 }
             }
         }

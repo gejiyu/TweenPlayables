@@ -9,6 +9,7 @@ namespace TweenPlayables
 {
     [TrackBindingType(typeof(TimelineDataManager))]
     [TrackClipType(typeof(TweenCalculatorClip))]
+    [TrackColor(0.4f, 0.4f, 0.5f)]
 #if UNITY_EDITOR
     [DisplayName("Tween Playables/Data/Calculator")]
 #endif
