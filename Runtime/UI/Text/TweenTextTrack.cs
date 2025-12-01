@@ -1,13 +1,13 @@
 #if UNITY_EDITOR
 using System.ComponentModel;
 #endif
-using UnityEngine.UI;
+using UnityEngine;
 using UnityEngine.Timeline;
 
 namespace TweenPlayables
 {
     [TrackBindingType(typeof(UILabel))]
-    [TrackClipType(typeof(TweenTextClip))]
+    [TrackClipType(typeof(TweenAnimationClip<TweenTextBehaviour>))]
 #if UNITY_EDITOR
     [DisplayName("Tween Playables/UI/Text")]
 #endif
