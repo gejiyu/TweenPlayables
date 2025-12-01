@@ -72,12 +72,26 @@ namespace TweenPlayables
             List<int> stageIndices = ParseStageIndices();
             Debug.Log($"[RuntimeTimelineLoaderTest] 加载 Prefab: {prefabName}, 阶段: [{string.Join(", ", stageIndices)}]");
 
+            // 模拟外部加载
+            GameObject prefab = null;
+#if UNITY_EDITOR
+            string assetPath = $"Assets/{prefabPath}/{prefabName}.prefab";
+            prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+#else
+            prefab = Resources.Load<GameObject>(prefabName);
+#endif
+
+            if (prefab == null)
+            {
+                Debug.LogError($"[RuntimeTimelineLoaderTest] 无法加载 Prefab: {prefabName}");
+                return;
+            }
+
             // 创建 Loader
-            currentLoader = RuntimeTimelineLoader.Create(prefabName, stageIndices, transform);
+            currentLoader = RuntimeTimelineLoader.Create(prefab, stageIndices.ToArray(), transform);
             
             if (currentLoader != null)
             {
-                currentLoader.prefabPath = prefabPath;
                 currentLoader.OnPlaybackCompleted += OnPlaybackCompleted;
                 isPlaying = true;
             }

@@ -3,9 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 namespace TweenPlayables
 {
@@ -16,14 +13,8 @@ namespace TweenPlayables
     public class RuntimeTimelineLoader : MonoBehaviour
     {
         [Header("加载设置")]
-        [Tooltip("Prefab 完整路径（相对于 Assets 文件夹，不含扩展名）")]
-        public string prefabPath = "AssetsRes/FishRes/FishRes_8888/Prefabs";
-        
         [Tooltip("是否在加载后自动播放")]
         public bool autoPlay = true;
-        
-        [Tooltip("组装后的 Timeline 播放速度")]
-        public float playbackSpeed = 1f;
 
         [Header("运行时状态")]
         [SerializeField] private GameObject loadedPrefab;
@@ -46,20 +37,20 @@ namespace TweenPlayables
         public event Action OnPlaybackCompleted;
 
         /// <summary>
-        /// 加载 Prefab 并根据阶段列表组装 Timeline
+        /// 使用已加载的 Prefab 资源并根据阶段列表组装 Timeline
         /// </summary>
-        /// <param name="prefabName">Prefab 名称（不含扩展名）</param>
-        /// <param name="stageIndices">阶段索引列表，例如 [0, 1, 2] 表示按顺序播放 Stage_0, Stage_1, Stage_2</param>
+        /// <param name="prefabAsset">Prefab 资源对象</param>
+        /// <param name="stageIndices">阶段索引列表</param>
         /// <returns>是否加载成功</returns>
-        public bool LoadAndAssemble(string prefabName, List<int> stageIndices)
+        public bool LoadAndAssemble(GameObject prefabAsset, int[] stageIndices)
         {
-            if (string.IsNullOrEmpty(prefabName))
+            if (prefabAsset == null)
             {
-                Debug.LogError("[RuntimeTimelineLoader] Prefab 名称不能为空");
+                Debug.LogError("[RuntimeTimelineLoader] Prefab 资源不能为空");
                 return false;
             }
 
-            if (stageIndices == null || stageIndices.Count == 0)
+            if (stageIndices == null || stageIndices.Length == 0)
             {
                 Debug.LogError("[RuntimeTimelineLoader] 阶段列表不能为空");
                 return false;
@@ -68,20 +59,12 @@ namespace TweenPlayables
             // 清理之前的资源
             Cleanup();
 
-            // 加载 Prefab
-            GameObject prefabAsset = LoadPrefabAsset(prefabName);
-            if (prefabAsset == null)
-            {
-                Debug.LogError($"[RuntimeTimelineLoader] 无法加载 Prefab: {prefabName}");
-                return false;
-            }
-
             // 实例化 Prefab
             loadedPrefab = Instantiate(prefabAsset, transform);
-            loadedPrefab.name = prefabName;
+            loadedPrefab.name = prefabAsset.name;
             
             OnPrefabLoaded?.Invoke(loadedPrefab);
-            Debug.Log($"[RuntimeTimelineLoader] 成功加载 Prefab: {prefabName}");
+            Debug.Log($"[RuntimeTimelineLoader] 成功加载 Prefab: {prefabAsset.name}");
 
             // 组装 Timeline
             bool assembled = AssembleTimeline(stageIndices);
@@ -100,58 +83,10 @@ namespace TweenPlayables
         }
 
         /// <summary>
-        /// 加载 Prefab 资源
-        /// </summary>
-        private GameObject LoadPrefabAsset(string prefabName)
-        {
-            GameObject prefabAsset = null;
-            
-#if UNITY_EDITOR
-            // 编辑器模式：使用 AssetDatabase 加载
-            string assetPath = $"Assets/{prefabPath}/{prefabName}.prefab";
-            prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
-            
-            if (prefabAsset == null)
-            {
-                Debug.LogError($"[RuntimeTimelineLoader] 编辑器模式加载失败: {assetPath}");
-            }
-#else
-            // 运行时模式：使用 YEngine.AssetSystem 或 Resources 加载
-            // 尝试使用 YEngine.AssetSystem
-            try
-            {
-                var assetManagerType = System.Type.GetType("YEngine.AssetSystem.GAssetManager, YEngine.AssetSystem");
-                if (assetManagerType != null)
-                {
-                    // 需要外部传入 GAssetManager 实例或使用单例
-                    Debug.Log("[RuntimeTimelineLoader] 请通过 SetAssetLoader 设置资源加载器");
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[RuntimeTimelineLoader] YEngine.AssetSystem 不可用: {e.Message}");
-            }
-
-            // 回退到 Resources 加载
-            if (prefabAsset == null)
-            {
-                prefabAsset = Resources.Load<GameObject>(prefabName);
-            }
-#endif
-            
-            return prefabAsset;
-        }
-
-        /// <summary>
-        /// 自定义资源加载委托
-        /// </summary>
-        public static Func<string, GameObject> CustomPrefabLoader { get; set; }
-
-        /// <summary>
         /// 根据阶段列表组装 Timeline
         /// 使用 ControlTrack 嵌套子 Timeline
         /// </summary>
-        private bool AssembleTimeline(List<int> stageIndices)
+        private bool AssembleTimeline(int[] stageIndices)
         {
             if (loadedPrefab == null)
             {
@@ -209,7 +144,7 @@ namespace TweenPlayables
             {
                 mainDirector = loadedPrefab.AddComponent<PlayableDirector>();
             }
-
+            mainDirector.playOnAwake = false;
             // 创建 ControlTrack 用于嵌套子 Timeline
             ControlTrack controlTrack = assembledTimeline.CreateTrack<ControlTrack>(null, "StageControl");
 
@@ -238,7 +173,7 @@ namespace TweenPlayables
                 if (controlAsset != null)
                 {
                     // 设置源 GameObject（包含 PlayableDirector）
-                    controlAsset.sourceGameObject.exposedName = UnityEditor.GUID.Generate().ToString();
+                    controlAsset.sourceGameObject.exposedName = System.Guid.NewGuid().ToString();
                     mainDirector.SetReferenceValue(controlAsset.sourceGameObject.exposedName, stageInfo.stageObject);
                     
                     // 配置控制选项
@@ -375,37 +310,29 @@ namespace TweenPlayables
         #region 静态工厂方法
 
         /// <summary>
-        /// 创建 RuntimeTimelineLoader 并加载 Prefab
+        /// 创建 RuntimeTimelineLoader 并使用已加载的 Prefab
         /// </summary>
-        /// <param name="prefabName">Prefab 名称</param>
+        /// <param name="prefabAsset">Prefab 资源</param>
         /// <param name="stageIndices">阶段索引列表</param>
         /// <param name="parent">父对象（可选）</param>
         /// <returns>RuntimeTimelineLoader 实例</returns>
-        public static RuntimeTimelineLoader Create(string prefabName, List<int> stageIndices, Transform parent = null)
+        public static RuntimeTimelineLoader Create(GameObject prefabAsset, int[] stageIndices, Transform parent = null)
         {
-            GameObject loaderObject = new GameObject($"TimelineLoader_{prefabName}");
+            if (prefabAsset == null)
+            {
+                Debug.LogError("[RuntimeTimelineLoader] Create 失败: Prefab 资源为空");
+                return null;
+            }
+
+            GameObject loaderObject = new GameObject($"TimelineLoader_{prefabAsset.name}");
             if (parent != null)
             {
                 loaderObject.transform.SetParent(parent);
             }
 
             RuntimeTimelineLoader loader = loaderObject.AddComponent<RuntimeTimelineLoader>();
-            loader.LoadAndAssemble(prefabName, stageIndices);
+            loader.LoadAndAssemble(prefabAsset, stageIndices);
 
-            return loader;
-        }
-
-        /// <summary>
-        /// 快速加载并播放
-        /// </summary>
-        /// <param name="prefabName">Prefab 名称</param>
-        /// <param name="stageIndices">阶段索引列表</param>
-        /// <param name="parent">父对象（可选）</param>
-        /// <returns>RuntimeTimelineLoader 实例</returns>
-        public static RuntimeTimelineLoader LoadAndPlay(string prefabName, List<int> stageIndices, Transform parent = null)
-        {
-            var loader = Create(prefabName, stageIndices, parent);
-            loader.autoPlay = true;
             return loader;
         }
 
