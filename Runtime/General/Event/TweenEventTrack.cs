@@ -6,7 +6,7 @@ using UnityEngine.Timeline;
 
 namespace TweenPlayables
 {
-    [TrackClipType(typeof(TweenAnimationClip<TweenEventBehaviour>))]
+    [TrackClipType(typeof(TweenEventClip))]
 #if UNITY_EDITOR
     [DisplayName("Tween Playables/General/Event")]
 #endif

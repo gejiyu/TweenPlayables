@@ -10,7 +10,7 @@ namespace TweenPlayables
     [TrackBindingType(typeof(PlayableDirector))]
     [TrackClipType(typeof(TimelineControlClip))]
 #if UNITY_EDITOR
-    [DisplayName("Tween Playables/General/Control")]
+    [DisplayName("Tween Playables/General/Timeline Control")]
 #endif
     public sealed class TimelineControlTrack : TweenAnimationTrack<PlayableDirector, TweenTimelineControlMixerBehaviour, TweenTimelineControlBehaviour> { }
 }

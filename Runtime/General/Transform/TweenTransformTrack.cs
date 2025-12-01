@@ -7,7 +7,7 @@ using UnityEngine.Timeline;
 namespace TweenPlayables
 {
     [TrackBindingType(typeof(Transform))]
-    [TrackClipType(typeof(TweenAnimationClip<TweenTransformBehaviour>))]
+    [TrackClipType(typeof(TweenTransformClip))]
 #if UNITY_EDITOR
     [DisplayName("Tween Playables/General/Transform")]
 #endif

@@ -7,7 +7,7 @@ using UnityEngine.Timeline;
 namespace TweenPlayables
 {
     [TrackBindingType(typeof(UILabel))]
-    [TrackClipType(typeof(TweenAnimationClip<TweenTextBehaviour>))]
+    [TrackClipType(typeof(TweenTextClip))]
 #if UNITY_EDITOR
     [DisplayName("Tween Playables/UI/Text")]
 #endif

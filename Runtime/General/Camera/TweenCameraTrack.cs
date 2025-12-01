@@ -7,7 +7,7 @@ using UnityEngine.Timeline;
 namespace TweenPlayables
 {
     [TrackBindingType(typeof(Camera))]
-    [TrackClipType(typeof(TweenAnimationClip<TweenCameraBehaviour>))]
+    [TrackClipType(typeof(TweenCameraClip))]
 #if UNITY_EDITOR
     [DisplayName("Tween Playables/General/Camera")]
 #endif
