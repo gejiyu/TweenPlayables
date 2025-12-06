@@ -151,28 +151,24 @@ namespace TweenPlayables.Editor
             // 创建新的TimelinePresetAnimationList资源
             TimelinePresetAnimationList newList = CreateInstance<TimelinePresetAnimationList>();
             
-            // 保存资源
-            string path = EditorUtility.SaveFilePanelInProject(
-                "创建TimelinePresetAnimationList", 
-                "TimelinePresetAnimationList", 
-                "asset", 
-                "选择保存位置");
-                
-            if (!string.IsNullOrEmpty(path))
+            string path = "Assets/Editor/TimelinePresetAnimationList.asset";
+            if (!System.IO.Directory.Exists("Assets/Editor"))
             {
-                AssetDatabase.CreateAsset(newList, path);
-                AssetDatabase.SaveAssets();
-                AssetDatabase.Refresh();
-                
-                // 重新加载列表
-                LoadAnimationNameList();
-                
-                // 选择新创建的资源
-                Selection.activeObject = newList;
-                EditorGUIUtility.PingObject(newList);
-                
-                Debug.Log($"已创建TimelinePresetAnimationList资源: {path}");
+                System.IO.Directory.CreateDirectory("Assets/Editor");
             }
+            
+            AssetDatabase.CreateAsset(newList, path);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            
+            // 重新加载列表
+            LoadAnimationNameList();
+            
+            // 选择新创建的资源
+            Selection.activeObject = newList;
+            EditorGUIUtility.PingObject(newList);
+            
+            Debug.Log($"已创建TimelinePresetAnimationList资源: {path}");
         }
         
         public override void OnInspectorGUI()
