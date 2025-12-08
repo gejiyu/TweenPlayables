@@ -9,95 +9,172 @@ namespace TweenPlayables
     /// <summary>
     /// 运行时 Timeline 加载器
     /// 用于加载导出的 Prefab 并根据阶段列表组装 Timeline
+    /// 支持同时加载和播放多个 Timeline 实例
     /// </summary>
     public class RuntimeTimelineLoader : MonoBehaviour
     {
+        /// <summary>
+        /// Timeline 会话类，封装单个 Timeline 实例的所有状态
+        /// </summary>
+        public class TimelineSession
+        {
+            public int SessionId { get; private set; }
+            public GameObject LoadedPrefab { get; set; }
+            public PlayableDirector MainDirector { get; set; }
+            public TimelineAsset AssembledTimeline { get; set; }
+            public bool IsCompleted { get; set; }
+
+            // 每个会话独立的事件
+            public event Action<GameObject> OnPrefabLoaded;
+            public event Action<TimelineAsset> OnTimelineAssembled;
+            public event Action OnPlaybackCompleted;
+            
+            // 保存委托引用用于取消订阅
+            private Action<PlayableDirector> stoppedCallback;
+
+            public TimelineSession(int id)
+            {
+                SessionId = id;
+            }
+
+            public void InvokePrefabLoaded() => OnPrefabLoaded?.Invoke(LoadedPrefab);
+            public void InvokeTimelineAssembled() => OnTimelineAssembled?.Invoke(AssembledTimeline);
+            public void InvokePlaybackCompleted()
+            {
+                if (!IsCompleted)
+                {
+                    IsCompleted = true;
+                    OnPlaybackCompleted?.Invoke();
+                }
+            }
+            
+            public void SubscribeToDirector()
+            {
+                if (MainDirector != null)
+                {
+                    stoppedCallback = (director) => InvokePlaybackCompleted();
+                    MainDirector.stopped += stoppedCallback;
+                }
+            }
+            
+            public void UnsubscribeFromDirector()
+            {
+                if (MainDirector != null && stoppedCallback != null)
+                {
+                    MainDirector.stopped -= stoppedCallback;
+                    stoppedCallback = null;
+                }
+            }
+
+            public void Cleanup()
+            {
+                UnsubscribeFromDirector();
+                
+                if (MainDirector != null)
+                {
+                    MainDirector.Stop();
+                }
+
+                if (AssembledTimeline != null)
+                {
+                    Destroy(AssembledTimeline);
+                    AssembledTimeline = null;
+                }
+
+                if (LoadedPrefab != null)
+                {
+                    Destroy(LoadedPrefab);
+                    LoadedPrefab = null;
+                }
+
+                MainDirector = null;
+                OnPrefabLoaded = null;
+                OnTimelineAssembled = null;
+                OnPlaybackCompleted = null;
+            }
+        }
+
+        private struct TimelineInfo
+        {
+            public GameObject stageObject;
+            public PlayableDirector director;
+            public TimelineAsset timeline;
+        }
+
         [Header("加载设置")]
         [Tooltip("是否在加载后自动播放")]
         public bool autoPlay = true;
 
-        [Header("运行时状态")]
-        [SerializeField] private GameObject loadedPrefab;
-        [SerializeField] private PlayableDirector mainDirector;
-        [SerializeField] private TimelineAsset assembledTimeline;
-
-        /// <summary>
-        /// 加载完成事件
-        /// </summary>
-        public event Action<GameObject> OnPrefabLoaded;
-        
-        /// <summary>
-        /// Timeline 组装完成事件
-        /// </summary>
-        public event Action<TimelineAsset> OnTimelineAssembled;
-        
-        /// <summary>
-        /// 播放完成事件
-        /// </summary>
-        public event Action OnPlaybackCompleted;
+        // 管理所有活跃的会话
+        private List<TimelineSession> activeSessions = new List<TimelineSession>();
+        private int nextSessionId = 1;
 
         /// <summary>
         /// 使用已加载的 Prefab 资源并根据阶段列表组装 Timeline
+        /// 创建一个新的 Timeline 会话
         /// </summary>
         /// <param name="prefabAsset">Prefab 资源对象</param>
         /// <param name="stageIndices">阶段索引列表</param>
-        /// <returns>是否加载成功</returns>
-        public bool LoadAndAssemble(GameObject prefabAsset, int[] stageIndices)
+        /// <returns>创建的 Timeline 会话，如果失败返回 null</returns>
+        public TimelineSession LoadAndAssemble(GameObject prefabAsset, int[] stageIndices)
         {
             if (prefabAsset == null)
             {
                 Debug.LogError("[RuntimeTimelineLoader] Prefab 资源不能为空");
-                return false;
+                return null;
             }
 
             if (stageIndices == null || stageIndices.Length == 0)
             {
                 Debug.LogError("[RuntimeTimelineLoader] 阶段列表不能为空");
-                return false;
+                return null;
             }
 
-            // 清理之前的资源
-            Cleanup();
-
-            // 实例化 Prefab
-            loadedPrefab = Instantiate(prefabAsset, transform);
-            loadedPrefab.name = prefabAsset.name;
+            // 创建新会话
+            TimelineSession session = new TimelineSession(nextSessionId++);
             
-            OnPrefabLoaded?.Invoke(loadedPrefab);
-            Debug.Log($"[RuntimeTimelineLoader] 成功加载 Prefab: {prefabAsset.name}");
+            // 实例化 Prefab
+            session.LoadedPrefab = Instantiate(prefabAsset, transform);
+            session.LoadedPrefab.name = $"{prefabAsset.name}_{session.SessionId}";
+            
+            session.InvokePrefabLoaded();
+            Debug.Log($"[RuntimeTimelineLoader] 会话 {session.SessionId}: 成功加载 Prefab: {prefabAsset.name}");
 
             // 组装 Timeline
-            bool assembled = AssembleTimeline(stageIndices);
+            bool assembled = AssembleTimeline(session, stageIndices);
             if (!assembled)
             {
-                return false;
+                session.Cleanup();
+                return null;
             }
+
+            // 添加到活跃会话列表
+            activeSessions.Add(session);
 
             // 自动播放
-            if (autoPlay && mainDirector != null)
+            if (autoPlay && session.MainDirector != null)
             {
-                Play();
+                Play(session);
             }
 
-            return true;
+            return session;
         }
 
         /// <summary>
         /// 根据阶段列表组装 Timeline
-        /// 使用 ControlTrack 嵌套子 Timeline
         /// </summary>
-        private bool AssembleTimeline(int[] stageIndices)
+        private bool AssembleTimeline(TimelineSession session, int[] stageIndices)
         {
-            if (loadedPrefab == null)
+            if (session.LoadedPrefab == null)
             {
-                Debug.LogError("[RuntimeTimelineLoader] 没有已加载的 Prefab");
+                Debug.LogError($"[RuntimeTimelineLoader] 会话 {session.SessionId}: 没有已加载的 Prefab");
                 return false;
             }
 
             // 收集所有 Stage 的 Timeline
             Dictionary<int, TimelineInfo> stageTimelines = new Dictionary<int, TimelineInfo>();
             
-            foreach (Transform child in loadedPrefab.transform)
+            foreach (Transform child in session.LoadedPrefab.transform)
             {
                 if (child.name.StartsWith("Stage_"))
                 {
@@ -113,7 +190,6 @@ namespace TweenPlayables
                                 director = director,
                                 timeline = timeline
                             };
-                            Debug.Log($"[RuntimeTimelineLoader] 找到 Stage_{stageIndex}，Timeline: {timeline.name}");
                         }
                     }
                 }
@@ -121,32 +197,27 @@ namespace TweenPlayables
 
             if (stageTimelines.Count == 0)
             {
-                Debug.LogError("[RuntimeTimelineLoader] 未找到任何 Stage Timeline");
+                Debug.LogError($"[RuntimeTimelineLoader] 会话 {session.SessionId}: 未找到任何 Stage Timeline");
                 return false;
             }
 
-            // 验证所有请求的阶段都存在
-            foreach (int index in stageIndices)
-            {
-                if (!stageTimelines.ContainsKey(index))
-                {
-                    Debug.LogWarning($"[RuntimeTimelineLoader] 未找到 Stage_{index}，将跳过");
-                }
-            }
-
             // 创建组装后的主 Timeline
-            assembledTimeline = ScriptableObject.CreateInstance<TimelineAsset>();
-            assembledTimeline.name = $"{loadedPrefab.name}_Assembled";
+            session.AssembledTimeline = ScriptableObject.CreateInstance<TimelineAsset>();
+            session.AssembledTimeline.name = $"{session.LoadedPrefab.name}_Assembled";
 
             // 创建主 PlayableDirector
-            mainDirector = loadedPrefab.GetComponent<PlayableDirector>();
-            if (mainDirector == null)
+            session.MainDirector = session.LoadedPrefab.GetComponent<PlayableDirector>();
+            if (session.MainDirector == null)
             {
-                mainDirector = loadedPrefab.AddComponent<PlayableDirector>();
+                session.MainDirector = session.LoadedPrefab.AddComponent<PlayableDirector>();
             }
-            mainDirector.playOnAwake = false;
+            session.MainDirector.playOnAwake = false;
+            
+            // 订阅播放完成事件
+            session.SubscribeToDirector();
+            
             // 创建 ControlTrack 用于嵌套子 Timeline
-            ControlTrack controlTrack = assembledTimeline.CreateTrack<ControlTrack>(null, "StageControl");
+            ControlTrack controlTrack = session.AssembledTimeline.CreateTrack<ControlTrack>(null, "StageControl");
 
             // 按顺序添加每个 Stage 作为 ControlPlayableAsset
             double currentTime = 0;
@@ -155,13 +226,12 @@ namespace TweenPlayables
             {
                 if (!stageTimelines.TryGetValue(stageIndex, out TimelineInfo stageInfo))
                 {
+                    Debug.LogWarning($"[RuntimeTimelineLoader] 会话 {session.SessionId}: 未找到 Stage_{stageIndex}，将跳过");
                     continue;
                 }
 
                 double stageDuration = stageInfo.timeline.duration;
                 
-                Debug.Log($"[RuntimeTimelineLoader] 添加 Stage_{stageIndex}，时长: {stageDuration:F2}s，起始时间: {currentTime:F2}s");
-
                 // 创建 ControlPlayableAsset Clip
                 TimelineClip clip = controlTrack.CreateClip<ControlPlayableAsset>();
                 clip.displayName = $"Stage_{stageIndex}";
@@ -174,7 +244,7 @@ namespace TweenPlayables
                 {
                     // 设置源 GameObject（包含 PlayableDirector）
                     controlAsset.sourceGameObject.exposedName = System.Guid.NewGuid().ToString();
-                    mainDirector.SetReferenceValue(controlAsset.sourceGameObject.exposedName, stageInfo.stageObject);
+                    session.MainDirector.SetReferenceValue(controlAsset.sourceGameObject.exposedName, stageInfo.stageObject);
                     
                     // 配置控制选项
                     controlAsset.updateDirector = true;
@@ -189,7 +259,7 @@ namespace TweenPlayables
             }
 
             // 设置 PlayableDirector
-            mainDirector.playableAsset = assembledTimeline;
+            session.MainDirector.playableAsset = session.AssembledTimeline;
 
             // 禁用原始 Stage 的 PlayableDirector 自动播放
             foreach (var stageInfo in stageTimelines.Values)
@@ -200,111 +270,76 @@ namespace TweenPlayables
                 }
             }
 
-            OnTimelineAssembled?.Invoke(assembledTimeline);
-            Debug.Log($"[RuntimeTimelineLoader] Timeline 组装完成，总时长: {assembledTimeline.duration:F2}s");
+            session.InvokeTimelineAssembled();
+            Debug.Log($"[RuntimeTimelineLoader] 会话 {session.SessionId}: Timeline 组装完成，总时长: {session.AssembledTimeline.duration:F2}s");
 
             return true;
         }
 
         /// <summary>
-        /// 播放组装后的 Timeline
+        /// 播放指定会话的 Timeline
         /// </summary>
-        public void Play()
+        public void Play(TimelineSession session)
         {
-            if (mainDirector == null)
+            if (session != null && session.MainDirector != null)
             {
-                Debug.LogError("[RuntimeTimelineLoader] 没有可播放的 Timeline");
-                return;
-            }
-
-            mainDirector.time = 0;
-            mainDirector.Play();
-            Debug.Log("[RuntimeTimelineLoader] 开始播放 Timeline");
-        }
-
-        /// <summary>
-        /// 暂停播放
-        /// </summary>
-        public void Pause()
-        {
-            if (mainDirector != null)
-            {
-                mainDirector.Pause();
+                session.MainDirector.time = 0;
+                session.MainDirector.Play();
+                session.IsCompleted = false;
             }
         }
 
         /// <summary>
-        /// 停止播放
+        /// 暂停指定会话
         /// </summary>
-        public void Stop()
+        public void Pause(TimelineSession session)
         {
-            if (mainDirector != null)
+            if (session != null && session.MainDirector != null)
             {
-                mainDirector.Stop();
-                mainDirector.time = 0;
+                session.MainDirector.Pause();
             }
         }
 
         /// <summary>
-        /// 跳转到指定时间
+        /// 停止指定会话
         /// </summary>
-        public void Seek(double time)
+        public void Stop(TimelineSession session)
         {
-            if (mainDirector != null)
+            if (session != null && session.MainDirector != null)
             {
-                mainDirector.time = time;
+                session.MainDirector.Stop();
+                session.MainDirector.time = 0;
             }
         }
 
         /// <summary>
-        /// 清理资源
+        /// 清理指定会话
         /// </summary>
-        public void Cleanup()
+        public void Cleanup(TimelineSession session)
         {
-            if (mainDirector != null)
+            if (session != null)
             {
-                mainDirector.Stop();
+                session.Cleanup();
+                activeSessions.Remove(session);
             }
+        }
 
-            if (assembledTimeline != null)
+        /// <summary>
+        /// 清理所有会话
+        /// </summary>
+        public void CleanupAll()
+        {
+            // 倒序遍历以安全删除
+            for (int i = activeSessions.Count - 1; i >= 0; i--)
             {
-                Destroy(assembledTimeline);
-                assembledTimeline = null;
+                activeSessions[i].Cleanup();
             }
-
-            if (loadedPrefab != null)
-            {
-                Destroy(loadedPrefab);
-                loadedPrefab = null;
-            }
-
-            mainDirector = null;
+            activeSessions.Clear();
         }
 
         private void OnDestroy()
         {
-            Cleanup();
-        }
-
-        private void Update()
-        {
-            // 检查播放完成
-            if (mainDirector != null && 
-                mainDirector.state == PlayState.Playing &&
-                mainDirector.time >= mainDirector.duration)
-            {
-                OnPlaybackCompleted?.Invoke();
-            }
-        }
-
-        /// <summary>
-        /// Stage Timeline 信息
-        /// </summary>
-        private class TimelineInfo
-        {
-            public GameObject stageObject;
-            public PlayableDirector director;
-            public TimelineAsset timeline;
+            CleanupAll();
         }
 
         #region 静态工厂方法

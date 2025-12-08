@@ -20,7 +20,8 @@ namespace TweenPlayables
         public string stageIndicesString = "0";
 
         [Header("运行时状态")]
-        [SerializeField] private RuntimeTimelineLoader currentLoader;
+        [SerializeField] private RuntimeTimelineLoader loader;
+        [SerializeField] private RuntimeTimelineLoader.TimelineSession currentSession;
         [SerializeField] private bool isPlaying;
 
         private List<int> ParseStageIndices()
@@ -61,12 +62,19 @@ namespace TweenPlayables
                 return;
             }
 
-            // 清理之前的 Loader
-            if (currentLoader != null)
+            // 清理之前的会话
+            if (currentSession != null)
             {
-                currentLoader.Cleanup();
-                Destroy(currentLoader.gameObject);
-                currentLoader = null;
+                loader.Cleanup(currentSession);
+                currentSession = null;
+            }
+
+            // 创建 Loader（如果不存在）
+            if (loader == null)
+            {
+                GameObject loaderObject = new GameObject($"TimelineLoader_{prefabName}");
+                loaderObject.transform.SetParent(transform);
+                loader = loaderObject.AddComponent<RuntimeTimelineLoader>();
             }
 
             List<int> stageIndices = ParseStageIndices();
@@ -87,12 +95,12 @@ namespace TweenPlayables
                 return;
             }
 
-            // 创建 Loader
-            currentLoader = RuntimeTimelineLoader.Create(prefab, stageIndices.ToArray(), transform);
+            // 加载并组装 Timeline
+            currentSession = loader.LoadAndAssemble(prefab, stageIndices.ToArray());
             
-            if (currentLoader != null)
+            if (currentSession != null)
             {
-                currentLoader.OnPlaybackCompleted += OnPlaybackCompleted;
+                currentSession.OnPlaybackCompleted += OnPlaybackCompleted;
                 isPlaying = true;
             }
         }
@@ -102,9 +110,9 @@ namespace TweenPlayables
         /// </summary>
         public void StopPlayback()
         {
-            if (currentLoader != null)
+            if (loader != null && currentSession != null)
             {
-                currentLoader.Stop();
+                loader.Stop(currentSession);
                 isPlaying = false;
             }
         }
@@ -114,11 +122,16 @@ namespace TweenPlayables
         /// </summary>
         public void Cleanup()
         {
-            if (currentLoader != null)
+            if (loader != null)
             {
-                currentLoader.Cleanup();
-                Destroy(currentLoader.gameObject);
-                currentLoader = null;
+                if (currentSession != null)
+                {
+                    loader.Cleanup(currentSession);
+                    currentSession = null;
+                }
+                loader.CleanupAll();
+                Destroy(loader.gameObject);
+                loader = null;
                 isPlaying = false;
             }
         }
