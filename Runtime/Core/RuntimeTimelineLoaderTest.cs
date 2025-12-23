@@ -96,7 +96,7 @@ namespace TweenPlayables
             }
 
             // 加载并组装 Timeline
-            currentSession = loader.LoadAndAssemble(prefab, stageIndices.ToArray());
+            currentSession = loader.LoadAndAssemble(prefab, stageIndices.ToArray(), null);
             
             if (currentSession != null)
             {

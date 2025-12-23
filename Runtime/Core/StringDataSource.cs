@@ -67,6 +67,21 @@ namespace TweenPlayables
         public string indexDataKey = "";
         
         /// <summary>
+        /// 元素字段的索引数据源类型（当 elementField 也指向 List 时使用）
+        /// </summary>
+        public DataSourceType elementIndexType = DataSourceType.Direct;
+        
+        /// <summary>
+        /// 元素字段的数值索引（当 elementIndexType = Direct 时使用）
+        /// </summary>
+        public int elementIndexNumericValue = 0;
+
+        /// <summary>
+        /// 元素字段的索引数据键（当 elementIndexType = DataManager 时使用）
+        /// </summary>
+        public string elementIndexDataKey = "";
+        
+        /// <summary>
         /// 缓存的 TimelineDataManager 引用（运行时通过 TweenAnimationBehaviour 传入）
         /// Timeline 资产不能直接引用场景对象，所以不序列化
         /// </summary>
@@ -103,13 +118,33 @@ namespace TweenPlayables
         /// <returns>解析后的字符串值</returns>
         public string GetValue()
         {
+            Debug.Log($"[字符串数据源.获取值] 开始获取值 - 数据类型: {dataType}");
+            
             // 如果没有 DataManager，强制使用 Direct 类型
             if (cachedDataManager == null && dataType != DataSourceType.Direct)
             {
+                Debug.LogWarning($"[字符串数据源.获取值] DataManager 为空，使用直接值: '{directValue}'");
                 return directValue ?? "";
             }
             
-            return StringDataSourceAccessor.GetString(this, cachedDataManager);
+            // 记录配置信息
+            switch (dataType)
+            {
+                case DataSourceType.Direct:
+                    Debug.Log($"[字符串数据源.获取值] 直接模式 - 直接值: '{directValue}'");
+                    break;
+                case DataSourceType.DataManager:
+                    Debug.Log($"[字符串数据源.获取值] DataManager模式 - 数据键: '{dataKey}', 索引类型: {indexType}, 数值索引: {indexNumericValue}, 索引数据键: '{indexDataKey}'");
+                    break;
+                case DataSourceType.Protobuf:
+                    Debug.Log($"[字符串数据源.获取值] Protobuf模式 - 字段路径: '{protobufField}', 元素字段: '{elementField}', 索引类型: {indexType}, 数值索引: {indexNumericValue}, 索引数据键: '{indexDataKey}'");
+                    break;
+            }
+            
+            string result = StringDataSourceAccessor.GetString(this, cachedDataManager);
+            Debug.Log($"[字符串数据源.获取值] 最终结果: '{result}'");
+            
+            return result;
         }
     }
 
@@ -123,37 +158,95 @@ namespace TweenPlayables
         /// </summary>
         public static string GetString(StringDataSource source, object dataManagerObject = null)
         {
+            Debug.Log("========== [GetString] 开始 ==========");
+            
             if (source == null)
+            {
+                Debug.LogWarning("[GetString] source 为 null，返回空字符串");
                 return "";
+            }
+            
+            Debug.Log($"[GetString] 数据源类型: {source.dataType}");
                 
             switch (source.dataType)
             {
                 case DataSourceType.Direct:
-                    return source.directValue ?? "";
+                    Debug.Log($"[GetString] Direct 模式 - directValue: '{source.directValue}'");
+                    string directResult = source.directValue ?? "";
+                    Debug.Log($"[GetString] Direct 模式返回: '{directResult}'");
+                    return directResult;
 
                 case DataSourceType.DataManager:
+                    Debug.Log($"[GetString] DataManager 模式:");
+                    Debug.Log($"  - dataKey: '{source.dataKey}'");
+                    Debug.Log($"  - indexType: {source.indexType}");
+                    Debug.Log($"  - indexNumericValue: {source.indexNumericValue}");
+                    Debug.Log($"  - indexDataKey: '{source.indexDataKey}'");
+                    Debug.Log($"  - dataManagerObject != null: {dataManagerObject != null}");
+                    
                     if (dataManagerObject != null && !string.IsNullOrEmpty(source.dataKey))
                     {
+                        Debug.Log("[GetString] 开始解析主列表索引...");
                         int resolvedIndex = GetIndexValue(source.indexType, source.indexNumericValue, source.indexDataKey, dataManagerObject);
-                        return GetStringFromDataManager(dataManagerObject, source.dataKey, resolvedIndex, source.directValue);
+                        Debug.Log($"[GetString] 主列表索引解析完成: {resolvedIndex}");
+                        
+                        string dmResult = GetStringFromDataManager(dataManagerObject, source.dataKey, resolvedIndex, source.directValue);
+                        Debug.Log($"[GetString] DataManager 模式返回: '{dmResult}'");
+                        return dmResult;
                     }
+                    Debug.Log($"[GetString] DataManager 条件不满足，返回 directValue: '{source.directValue}'");
                     return source.directValue ?? "";
 
                 case DataSourceType.Protobuf:
+                    Debug.Log($"[GetString] Protobuf 模式:");
+                    Debug.Log($"  - protobufField: '{source.protobufField}'");
+                    Debug.Log($"  - elementField: '{source.elementField}'");
+                    Debug.Log($"  - indexType: {source.indexType}");
+                    Debug.Log($"  - indexNumericValue: {source.indexNumericValue}");
+                    Debug.Log($"  - indexDataKey: '{source.indexDataKey}'");
+                    Debug.Log($"  - elementIndexType: {source.elementIndexType}");
+                    Debug.Log($"  - elementIndexNumericValue: {source.elementIndexNumericValue}");
+                    Debug.Log($"  - elementIndexDataKey: '{source.elementIndexDataKey}'");
+                    Debug.Log($"  - dataManagerObject != null: {dataManagerObject != null}");
+                    
                     if (dataManagerObject != null && !string.IsNullOrEmpty(source.protobufField))
                     {
+                        Debug.Log("[GetString] 开始解析主列表索引...");
                         int resolvedIndex = GetIndexValue(source.indexType, source.indexNumericValue, source.indexDataKey, dataManagerObject);
+                        Debug.Log($"[GetString] 主列表索引解析完成: {resolvedIndex}");
+                        
+                        Debug.Log("[GetString] 开始解析元素列表索引...");
+                        int elementResolvedIndex = GetIndexValue(source.elementIndexType, source.elementIndexNumericValue, source.elementIndexDataKey, dataManagerObject);
+                        Debug.Log($"[GetString] 元素列表索引解析完成: {elementResolvedIndex}");
+                        
+                        Debug.Log("[GetString] 开始获取 Protobuf 对象...");
                         var protobufObject = GetProtobufObject(dataManagerObject);
+                        Debug.Log($"[GetString] Protobuf 对象获取结果: {(protobufObject != null ? protobufObject.GetType().Name : "null")}");
                         
                         if (protobufObject != null)
                         {
-                            var value = GetProtobufFieldValue(protobufObject, source.protobufField, resolvedIndex, source.elementField);
-                            return value != null ? value.ToString() : (source.directValue ?? "");
+                            Debug.Log($"[GetString] 开始获取字段值: protobufField='{source.protobufField}', listIndex={resolvedIndex}, elementField='{source.elementField}', elementListIndex={elementResolvedIndex}");
+                            var value = GetProtobufFieldValue(protobufObject, source.protobufField, resolvedIndex, source.elementField, elementResolvedIndex);
+                            Debug.Log($"[GetString] 字段值获取结果: {(value != null ? $"类型={value.GetType().Name}, 值={value}" : "null")}");
+                            
+                            string pbResult = value != null ? value.ToString() : (source.directValue ?? "");
+                            Debug.Log($"[GetString] Protobuf 模式返回: '{pbResult}'");
+                            return pbResult;
+                        }
+                        else
+                        {
+                            Debug.LogWarning("[GetString] Protobuf 对象为 null，返回 directValue");
                         }
                     }
+                    else
+                    {
+                        Debug.Log($"[GetString] Protobuf 条件不满足 (dataManagerObject={dataManagerObject != null}, protobufField='{source.protobufField}')");
+                    }
+                    Debug.Log($"[GetString] Protobuf 模式返回 directValue: '{source.directValue}'");
                     return source.directValue ?? "";
 
                 default:
+                    Debug.LogWarning($"[GetString] 未知的数据源类型: {source.dataType}");
                     return source.directValue ?? "";
             }
         }
@@ -229,10 +322,16 @@ namespace TweenPlayables
         /// </summary>
         private static int GetIndexValue(DataSourceType indexType, int indexNumericValue, string indexDataKey, object dataManagerObject)
         {
+            Debug.Log($"[获取索引值] 开始 - 索引类型: {indexType}, 数值索引: {indexNumericValue}, 索引数据键: '{indexDataKey}'");
+            
+            int result = 0;
+            
             switch (indexType)
             {
                 case DataSourceType.Direct:
-                    return indexNumericValue;
+                    result = indexNumericValue;
+                    Debug.Log($"[获取索引值] 直接模式，返回索引: {result}");
+                    return result;
 
                 case DataSourceType.DataManager:
                     if (dataManagerObject != null && !string.IsNullOrEmpty(indexDataKey))
@@ -244,18 +343,23 @@ namespace TweenPlayables
                             if (getMethod != null)
                             {
                                 var genericMethod = getMethod.MakeGenericMethod(typeof(int));
-                                var result = genericMethod.Invoke(dataManagerObject, new object[] { indexDataKey, 0 });
-                                return result != null ? (int)result : 0;
+                                var methodResult = genericMethod.Invoke(dataManagerObject, new object[] { indexDataKey, 0 });
+                                result = methodResult != null ? (int)methodResult : 0;
+                                Debug.Log($"[获取索引值] DataManager模式，从键 '{indexDataKey}' 获取到索引: {result}");
+                                return result;
                             }
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            Debug.LogWarning($"[获取索引值] DataManager 获取索引失败: {ex.Message}");
                             return 0;
                         }
                     }
+                    Debug.LogWarning("[获取索引值] DataManager 模式但参数无效，返回 0");
                     return 0;
 
                 default:
+                    Debug.LogWarning($"[获取索引值] 未知的索引类型: {indexType}，返回 0");
                     return 0;
             }
         }
@@ -297,80 +401,105 @@ namespace TweenPlayables
         /// <summary>
         /// 从 Protobuf 对象获取字段值（支持嵌套路径和列表索引）
         /// </summary>
-        private static object GetProtobufFieldValue(object protobufObject, string fieldPath, int listIndex, string elementFieldPath)
+        private static object GetProtobufFieldValue(object protobufObject, string fieldPath, int listIndex, string elementFieldPath, int elementListIndex = 0)
         {
+            Debug.Log($"[获取Protobuf字段值] 开始 - 字段路径: '{fieldPath}', 列表索引: {listIndex}, 元素字段路径: '{elementFieldPath}', 元素列表索引: {elementListIndex}");
+            
             if (protobufObject == null || string.IsNullOrEmpty(fieldPath))
+            {
+                Debug.LogWarning("[获取Protobuf字段值] Protobuf对象为空 或 字段路径为空");
                 return null;
+            }
 
             try
             {
                 var pathParts = fieldPath.Split('.');
                 object currentObject = protobufObject;
+                
+                Debug.Log($"[获取Protobuf字段值] 路径分段: [{string.Join(", ", pathParts)}]");
 
                 // 导航到指定路径
                 for (int i = 0; i < pathParts.Length; i++)
                 {
+                    Debug.Log($"[获取Protobuf字段值] 第 {i+1}/{pathParts.Length} 步: 访问字段 '{pathParts[i]}'");
+                    
                     if (currentObject == null)
+                    {
+                        Debug.LogWarning($"[获取Protobuf字段值] 当前对象为空 在第 {i+1} 步");
                         return null;
+                    }
 
                     var type = currentObject.GetType();
+                    Debug.Log($"[获取Protobuf字段值] 当前对象类型: {type.Name}");
+                    
                     var property = type.GetProperty(pathParts[i]);
 
                     if (property == null)
                     {
-                        Debug.LogWarning($"Protobuf field '{pathParts[i]}' not found in {type.Name}");
+                        Debug.LogWarning($"Protobuf 字段 '{pathParts[i]}' 在 {type.Name} 中未找到");
                         return null;
                     }
 
                     var value = property.GetValue(currentObject);
+                    Debug.Log($"[获取Protobuf字段值] 字段 '{pathParts[i]}' 值类型: {(value != null ? value.GetType().Name : "null")}");
 
                     // 如果是最后一个部分
                     if (i == pathParts.Length - 1)
                     {
+                        Debug.Log($"[获取Protobuf字段值] 到达路径末端");
+                        
                         // 检查是否是列表类型
                         if (IsProtobufList(property.PropertyType))
                         {
+                            Debug.Log($"[获取Protobuf字段值] 这是一个列表类型，准备使用索引 {listIndex}");
+                            
                             // 从列表获取元素
                             var indexer = property.PropertyType.GetProperty("Item");
                             if (indexer != null && value != null)
                             {
                                 var count = property.PropertyType.GetProperty("Count");
                                 int listSize = count != null ? (int)count.GetValue(value) : 0;
+                                Debug.Log($"[获取Protobuf字段值] 列表大小: {listSize}");
 
                                 if (listIndex >= 0 && listIndex < listSize)
                                 {
                                     var element = indexer.GetValue(value, new object[] { listIndex });
+                                    Debug.Log($"[获取Protobuf字段值] ✅ 成功获取索引 {listIndex} 的元素，类型: {(element != null ? element.GetType().Name : "null")}");
                                     
                                     // 如果有 elementFieldPath，继续访问元素的字段
                                     if (!string.IsNullOrEmpty(elementFieldPath) && element != null)
                                     {
-                                        return GetProtobufFieldValue(element, elementFieldPath, 0, null);
+                                        Debug.Log($"[获取Protobuf字段值] 继续访问元素的字段: '{elementFieldPath}', 使用元素索引: {elementListIndex}");
+                                        return GetProtobufFieldValue(element, elementFieldPath, elementListIndex, null, 0);
                                     }
                                     
+                                    Debug.Log($"[获取Protobuf字段值] 返回元素值: {element}");
                                     return element;
                                 }
                                 else
                                 {
-                                    Debug.LogWarning($"Protobuf list index {listIndex} out of range (0-{listSize-1}) for field '{fieldPath}'");
+                                    Debug.LogWarning($"Protobuf 列表索引 {listIndex} 超出范围 (0-{listSize-1})，字段路径: '{fieldPath}'");
                                 }
                             }
                             return null;
                         }
                         else
                         {
+                            Debug.Log($"[获取Protobuf字段值] 不是列表，直接返回值: {value}");
                             return value;
                         }
                     }
                     else
                     {
                         // 继续导航到下一层
+                        Debug.Log($"[获取Protobuf字段值] 继续导航到下一层");
                         currentObject = value;
                     }
                 }
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"Failed to get Protobuf field '{fieldPath}': {ex.Message}");
+                Debug.LogWarning($"获取 Protobuf 字段 '{fieldPath}' 失败: {ex.Message}");
             }
 
             return null;

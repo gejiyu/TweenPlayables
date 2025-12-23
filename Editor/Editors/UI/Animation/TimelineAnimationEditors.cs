@@ -27,8 +27,6 @@ namespace TweenPlayables.Editor
         public override Texture2D ClipIcon => Styles.TimelineAnimationIcon;
     }
 
-
-    
     /// <summary>
     /// Custom inspector for TimelineAnimationPlayableAsset
     /// </summary>
@@ -39,6 +37,8 @@ namespace TweenPlayables.Editor
         SerializedProperty applyFootIKProperty;
         SerializedProperty loopProperty;
         
+        private string[] availableGroups;
+        private int selectedGroupIndex = 0;
         private string[] availableAnimationNames;
         private int selectedIndex = 0;
         private TimelinePresetAnimationList timelinePresetAnimationList;
@@ -66,22 +66,58 @@ namespace TweenPlayables.Editor
             
             if (timelinePresetAnimationList != null)
             {
-                // 从资源文件中获取备注信息列表（用于下拉框显示）
-                var commentsList = new List<string> { "None" };
-                commentsList.AddRange(timelinePresetAnimationList.GetComments());
-                availableAnimationNames = commentsList.ToArray();
+                // 加载分组列表
+                LoadGroupList();
+                
+                // 根据当前选中的分组加载动画列表
+                LoadAnimationNamesByGroup();
             }
             else
             {
                 // 如果没有找到资源文件，使用默认列表
-                availableAnimationNames = new string[] 
-                { 
-                    "None"
-                };
+                availableGroups = new string[] { "默认分组" };
+                availableAnimationNames = new string[] { "None" };
             }
             
             // 查找当前选中的索引
             UpdateSelectedIndexFromClip();
+        }
+        
+        void LoadGroupList()
+        {
+            if (timelinePresetAnimationList != null)
+            {
+                var groups = timelinePresetAnimationList.GetGroups();
+                availableGroups = groups != null && groups.Length > 0 ? groups : new string[] { "默认分组" };
+                
+                // 确保selectedGroupIndex在有效范围内
+                if (selectedGroupIndex < 0 || selectedGroupIndex >= availableGroups.Length)
+                {
+                    selectedGroupIndex = 0;
+                }
+            }
+        }
+        
+        void LoadAnimationNamesByGroup()
+        {
+            if (timelinePresetAnimationList != null && availableGroups != null && selectedGroupIndex >= 0 && selectedGroupIndex < availableGroups.Length)
+            {
+                string selectedGroup = availableGroups[selectedGroupIndex];
+                
+                // 从资源文件中获取指定分组的备注信息列表（用于下拉框显示）
+                var commentsList = new List<string> { "None" };
+                var groupComments = timelinePresetAnimationList.GetCommentsByGroup(selectedGroup);
+                if (groupComments != null && groupComments.Length > 0)
+                {
+                    commentsList.AddRange(groupComments);
+                }
+                availableAnimationNames = commentsList.ToArray();
+            }
+            else
+            {
+                // 如果没有有效分组，使用默认列表
+                availableAnimationNames = new string[] { "None" };
+            }
         }
         
         /// <summary>
@@ -100,6 +136,21 @@ namespace TweenPlayables.Editor
                     string comment = timelinePresetAnimationList.GetCommentByAnimationName(clipName);
                     if (!string.IsNullOrEmpty(comment))
                     {
+                        // 查找该动画所属的分组
+                        var allEntries = timelinePresetAnimationList.animationEntries;
+                        var entry = allEntries.Find(e => e.animationName == clipName);
+                        if (entry != null)
+                        {
+                            // 更新分组选择
+                            int groupIndex = System.Array.IndexOf(availableGroups, entry.group);
+                            if (groupIndex >= 0)
+                            {
+                                selectedGroupIndex = groupIndex;
+                                // 重新加载该分组的动画列表
+                                LoadAnimationNamesByGroup();
+                            }
+                        }
+                        
                         selectedIndex = System.Array.IndexOf(availableAnimationNames, comment);
                         currentPlayName = clipName; // 同步更新currentPlayName
                     }
@@ -191,8 +242,31 @@ namespace TweenPlayables.Editor
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("预设动画", EditorStyles.boldLabel);
             
-            // 更新选中索引（基于当前Animation Clip）
-            UpdateSelectedIndexFromClip();
+            // 确保列表已加载
+            if (timelinePresetAnimationList != null)
+            {
+                // 确保分组列表已加载
+                if (availableGroups == null || availableGroups.Length == 0)
+                {
+                    LoadGroupList();
+                    LoadAnimationNamesByGroup();
+                    // 初次加载时更新选中索引（基于当前Animation Clip）
+                    UpdateSelectedIndexFromClip();
+                }
+                
+                // 显示分组下拉框
+                if (availableGroups != null && availableGroups.Length > 0)
+                {
+                    EditorGUI.BeginChangeCheck();
+                    selectedGroupIndex = EditorGUILayout.Popup("分组", selectedGroupIndex, availableGroups);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        // 分组改变时，重新加载该分组的动画列表
+                        LoadAnimationNamesByGroup();
+                        selectedIndex = 0; // 重置动画选择
+                    }
+                }
+            }
             
             // 显示动画名称下拉框
             if (availableAnimationNames != null && availableAnimationNames.Length > 0)
@@ -264,10 +338,11 @@ namespace TweenPlayables.Editor
                 }
             }
 
+            // Draw conditional execution UI
+            EditorGUILayout.Space();
+            UnityEditor.Timeline.ConditionalPlayableAssetInspectorHelper.DrawExecutionConditionGUI(serializedObject);
             
             serializedObject.ApplyModifiedProperties();
         }
-        
-
     }
 }

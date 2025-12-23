@@ -49,7 +49,7 @@ namespace TweenPlayables
         public override void OnTweenStarted(UILabel binding, TweenAnimationBehaviour<UILabel> behaviour, Playable playable, FrameData info)
         {
             if (textChange.IsActive && textChange.scrambleMode == ChangeScrambleMode.Start)
-                binding.text = textChange.ChangeValue;
+                binding.text = textChange.GetActualValue();
             if (bitmapFontChange.IsActive && bitmapFontChange.scrambleMode == ChangeScrambleMode.Start)
             {
                 // 依赖GameFramework 加载
@@ -62,7 +62,7 @@ namespace TweenPlayables
         public override void OnTweenFinished(UILabel binding, TweenAnimationBehaviour<UILabel> behaviour, Playable playable, FrameData info)
         {
             if (textChange.IsActive && textChange.scrambleMode == ChangeScrambleMode.End)
-                binding.text = textChange.ChangeValue;
+                binding.text = textChange.GetActualValue();
             if (bitmapFontChange.IsActive && bitmapFontChange.scrambleMode == ChangeScrambleMode.End)
             {
                 // 依赖GameFramework 加载

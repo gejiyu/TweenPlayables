@@ -20,6 +20,16 @@ namespace TweenPlayables
 
         public override void OnBehaviourPlay(Playable playable, FrameData info)
         {
+            // 确保在调用 OnTweenStarted 之前已经初始化
+            if (!initialized && info.output.IsOutputValid())
+            {
+                var playerData = info.output.GetUserData();
+                if (playerData is TBinding target)
+                {
+                    Initialize(target, playable);
+                }
+            }
+            
             if (info.effectivePlayState == PlayState.Playing && binding != null)
             {
                 OnTweenStarted(binding, this, playable, info);

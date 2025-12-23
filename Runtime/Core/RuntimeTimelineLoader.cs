@@ -116,7 +116,7 @@ namespace TweenPlayables
         /// <param name="prefabAsset">Prefab 资源对象</param>
         /// <param name="stageIndices">阶段索引列表</param>
         /// <returns>创建的 Timeline 会话，如果失败返回 null</returns>
-        public TimelineSession LoadAndAssemble(GameObject prefabAsset, int[] stageIndices)
+        public TimelineSession LoadAndAssemble(GameObject prefabAsset, int[] stageIndices, Action OnPlaybackCompleted )
         {
             if (prefabAsset == null)
             {
@@ -133,8 +133,10 @@ namespace TweenPlayables
             // 创建新会话
             TimelineSession session = new TimelineSession(nextSessionId++);
             
-            // 实例化 Prefab
-            session.LoadedPrefab = Instantiate(prefabAsset, transform);
+            session.OnPlaybackCompleted += OnPlaybackCompleted;
+            // 设置 Prefab 的父节点
+            session.LoadedPrefab = prefabAsset;
+            session.LoadedPrefab.transform.SetParent(transform);
             session.LoadedPrefab.name = $"{prefabAsset.name}_{session.SessionId}";
             
             session.InvokePrefabLoaded();
@@ -216,11 +218,9 @@ namespace TweenPlayables
             // 订阅播放完成事件
             session.SubscribeToDirector();
             
-            // 创建 ControlTrack 用于嵌套子 Timeline
-            ControlTrack controlTrack = session.AssembledTimeline.CreateTrack<ControlTrack>(null, "StageControl");
-
-            // 按顺序添加每个 Stage 作为 ControlPlayableAsset
+            // 为每个 Stage 创建独立的 ControlTrack
             double currentTime = 0;
+            int trackIndex = 0;
 
             foreach (int stageIndex in stageIndices)
             {
@@ -230,9 +230,36 @@ namespace TweenPlayables
                     continue;
                 }
 
+                // 为当前 Stage 创建独立的 ControlTrack
+                ControlTrack controlTrack = session.AssembledTimeline.CreateTrack<ControlTrack>(null, $"Control_Stage_{stageIndex}");
+                
+                // 获取完整时长
                 double stageDuration = stageInfo.timeline.duration;
                 
-                // 创建 ControlPlayableAsset Clip
+                // 计算 AnimationTrack 的时长（用于拼接计算）
+                float animationDuration = 0f;
+                foreach (var track in stageInfo.timeline.GetOutputTracks())
+                {
+                    if (track.GetType() == typeof(AnimationTrack))
+                    {
+                        foreach (var trackClip in track.GetClips())
+                        {
+                            float clipEnd = (float)(trackClip.start + trackClip.duration);
+                            if (clipEnd > animationDuration)
+                            {
+                                animationDuration = clipEnd;
+                            }
+                        }
+                    }
+                }
+                
+                // 如果没有 AnimationTrack，使用完整时长
+                if (animationDuration <= 0)
+                {
+                    animationDuration = (float)stageDuration;
+                }
+                
+                // 在独立的 ControlTrack 上创建 ControlPlayableAsset Clip
                 TimelineClip clip = controlTrack.CreateClip<ControlPlayableAsset>();
                 clip.displayName = $"Stage_{stageIndex}";
                 clip.start = currentTime;
@@ -255,7 +282,11 @@ namespace TweenPlayables
                     controlAsset.postPlayback = ActivationControlPlayable.PostPlaybackState.Revert;
                 }
 
-                currentTime += stageDuration;
+                Debug.Log($"[RuntimeTimelineLoader] 会话 {session.SessionId}: Track {trackIndex} - Stage_{stageIndex}, 开始: {currentTime:F2}s, 动画时长: {animationDuration:F2}s, 总时长: {stageDuration:F2}s");
+                
+                // 使用 AnimationTrack 时长来计算下一个阶段的开始位置
+                currentTime += animationDuration;
+                trackIndex++;
             }
 
             // 设置 PlayableDirector
@@ -341,36 +372,5 @@ namespace TweenPlayables
         {
             CleanupAll();
         }
-
-        #region 静态工厂方法
-
-        /// <summary>
-        /// 创建 RuntimeTimelineLoader 并使用已加载的 Prefab
-        /// </summary>
-        /// <param name="prefabAsset">Prefab 资源</param>
-        /// <param name="stageIndices">阶段索引列表</param>
-        /// <param name="parent">父对象（可选）</param>
-        /// <returns>RuntimeTimelineLoader 实例</returns>
-        public static RuntimeTimelineLoader Create(GameObject prefabAsset, int[] stageIndices, Transform parent = null)
-        {
-            if (prefabAsset == null)
-            {
-                Debug.LogError("[RuntimeTimelineLoader] Create 失败: Prefab 资源为空");
-                return null;
-            }
-
-            GameObject loaderObject = new GameObject($"TimelineLoader_{prefabAsset.name}");
-            if (parent != null)
-            {
-                loaderObject.transform.SetParent(parent);
-            }
-
-            RuntimeTimelineLoader loader = loaderObject.AddComponent<RuntimeTimelineLoader>();
-            loader.LoadAndAssemble(prefabAsset, stageIndices);
-
-            return loader;
-        }
-
-        #endregion
     }
 }

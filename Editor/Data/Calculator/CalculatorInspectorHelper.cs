@@ -35,6 +35,10 @@ namespace UnityEditor.Timeline
             public const string IndexType = "IndexType";
             public const string IndexNumericValue = "IndexNumericValue";
             public const string IndexDataKey = "IndexDataKey";
+            public const string ElementField = "ElementField";
+            public const string ElementIndexType = "ElementIndexType";
+            public const string ElementIndexNumericValue = "ElementIndexNumericValue";
+            public const string ElementIndexDataKey = "ElementIndexDataKey";
         }
         
         /// <summary>
@@ -66,6 +70,10 @@ namespace UnityEditor.Timeline
             public SerializedProperty indexType;
             public SerializedProperty indexNumericValue;
             public SerializedProperty indexDataKey;
+            public SerializedProperty elementField;
+            public SerializedProperty elementIndexType;
+            public SerializedProperty elementIndexNumericValue;
+            public SerializedProperty elementIndexDataKey;
             
             public static OperandProperties Create(SerializedProperty calculatorNode, string prefix)
             {
@@ -77,7 +85,11 @@ namespace UnityEditor.Timeline
                     protobufField = calculatorNode.FindPropertyRelative(prefix + PropertyNames.ProtobufField),
                     indexType = calculatorNode.FindPropertyRelative(prefix + PropertyNames.IndexType),
                     indexNumericValue = calculatorNode.FindPropertyRelative(prefix + PropertyNames.IndexNumericValue),
-                    indexDataKey = calculatorNode.FindPropertyRelative(prefix + PropertyNames.IndexDataKey)
+                    indexDataKey = calculatorNode.FindPropertyRelative(prefix + PropertyNames.IndexDataKey),
+                    elementField = calculatorNode.FindPropertyRelative(prefix + PropertyNames.ElementField),
+                    elementIndexType = calculatorNode.FindPropertyRelative(prefix + PropertyNames.ElementIndexType),
+                    elementIndexNumericValue = calculatorNode.FindPropertyRelative(prefix + PropertyNames.ElementIndexNumericValue),
+                    elementIndexDataKey = calculatorNode.FindPropertyRelative(prefix + PropertyNames.ElementIndexDataKey)
                 };
             }
         }
@@ -168,7 +180,9 @@ namespace UnityEditor.Timeline
             }
             else if (operand.dataType.intValue == 2) // Protobuf
             {
-                DrawProtobufFieldDropdown(operand.protobufField, operand.indexType, operand.indexNumericValue, operand.indexDataKey, dataManager);
+                DrawProtobufFieldDropdown(operand.protobufField, operand.indexType, operand.indexNumericValue, operand.indexDataKey,
+                    operand.elementField, operand.elementIndexType, operand.elementIndexNumericValue, operand.elementIndexDataKey,
+                    dataManager);
             }
             EditorGUI.indentLevel--;
         }
@@ -248,30 +262,31 @@ namespace UnityEditor.Timeline
                                     if (!string.IsNullOrEmpty(indexDataKeyProperty.stringValue))
                                     {
                                         var indexFromData = GetDataManagerValue(dataManager, indexDataKeyProperty.stringValue);
-                                        if (indexFromData != null && indexFromData is int actualIndex)
+                                        if (indexFromData != null)
                                         {
-                                            EditorGUILayout.LabelField($"Index from DataManager: {actualIndex}", EditorStyles.miniLabel);
-                                            
-                                            if (actualIndex >= 0 && actualIndex < valueInfo.listSize)
+                                            int? actualIndex = TryConvertToInt(indexFromData);
+                                            if (actualIndex.HasValue)
                                             {
-                                                var indexValue = GetListValueAtIndex(keyValue, actualIndex);
-                                                EditorGUILayout.LabelField($"Value at [{actualIndex}]: {indexValue}", EditorStyles.miniLabel);
+                                                EditorGUILayout.LabelField($"Index from DataManager: {actualIndex.Value}", EditorStyles.miniLabel);
+                                                
+                                                if (actualIndex.Value >= 0 && actualIndex.Value < valueInfo.listSize)
+                                                {
+                                                    var indexValue = GetListValueAtIndex(keyValue, actualIndex.Value);
+                                                    EditorGUILayout.LabelField($"Value at [{actualIndex.Value}]: {indexValue}", EditorStyles.miniLabel);
+                                                }
+                                                else
+                                                {
+                                                    EditorGUILayout.LabelField("Index out of range", EditorStyles.miniLabel);
+                                                }
                                             }
                                             else
                                             {
-                                                EditorGUILayout.LabelField("Index out of range", EditorStyles.miniLabel);
+                                                EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' is not a numeric type (current type: {indexFromData.GetType().Name})", MessageType.Warning);
                                             }
                                         }
                                         else
                                         {
-                                            if (indexFromData == null)
-                                            {
-                                                EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' not found in DataManager", MessageType.Warning);
-                                            }
-                                            else
-                                            {
-                                                EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' is not an int (current type: {indexFromData.GetType().Name})", MessageType.Warning);
-                                            }
+                                            EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' not found in DataManager", MessageType.Warning);
                                         }
                                     }
                                 }
@@ -439,38 +454,39 @@ namespace UnityEditor.Timeline
                 if (!string.IsNullOrEmpty(indexDataKeyProperty.stringValue))
                 {
                     var indexFromData = GetDataManagerValue(dataManager, indexDataKeyProperty.stringValue);
-                    if (indexFromData != null && indexFromData is int actualIndex)
+                    if (indexFromData != null)
                     {
-                        EditorGUILayout.LabelField($"Index from DataManager: {actualIndex}", EditorStyles.miniLabel);
-                        
-                        if (actualIndex >= 0 && actualIndex < listSize)
+                        int? actualIndex = TryConvertToInt(indexFromData);
+                        if (actualIndex.HasValue)
                         {
-                            if (listValues != null && actualIndex < listValues.Length)
+                            EditorGUILayout.LabelField($"Index from DataManager: {actualIndex.Value}", EditorStyles.miniLabel);
+                            
+                            if (actualIndex.Value >= 0 && actualIndex.Value < listSize)
                             {
-                                // Show value for primitive lists
-                                EditorGUILayout.LabelField($"Value at [{actualIndex}]: {listValues[actualIndex]}", EditorStyles.miniLabel);
+                                if (listValues != null && actualIndex.Value < listValues.Length)
+                                {
+                                    // Show value for primitive lists
+                                    EditorGUILayout.LabelField($"Value at [{actualIndex.Value}]: {listValues[actualIndex.Value]}", EditorStyles.miniLabel);
+                                }
+                                else
+                                {
+                                    // Show validity for object lists
+                                    EditorGUILayout.LabelField($"Valid index for list (size: {listSize})", EditorStyles.miniLabel);
+                                }
                             }
                             else
                             {
-                                // Show validity for object lists
-                                EditorGUILayout.LabelField($"Valid index for list (size: {listSize})", EditorStyles.miniLabel);
+                                EditorGUILayout.HelpBox($"Index {actualIndex.Value} out of range (list size: {listSize})", MessageType.Warning);
                             }
                         }
                         else
                         {
-                            EditorGUILayout.HelpBox($"Index {actualIndex} out of range (list size: {listSize})", MessageType.Warning);
+                            EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' is not a numeric type (current type: {indexFromData.GetType().Name})", MessageType.Warning);
                         }
                     }
                     else
                     {
-                        if (indexFromData == null)
-                        {
-                            EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' not found in DataManager", MessageType.Warning);
-                        }
-                        else
-                        {
-                            EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' is not an int (current type: {indexFromData.GetType().Name})", MessageType.Warning);
-                        }
+                        EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' not found in DataManager", MessageType.Warning);
                     }
                 }
             }
@@ -663,30 +679,31 @@ namespace UnityEditor.Timeline
                             if (!string.IsNullOrEmpty(indexDataKeyProperty.stringValue))
                             {
                                 var indexFromData = GetDataManagerValue(dataManager, indexDataKeyProperty.stringValue);
-                                if (indexFromData != null && indexFromData is int actualIndex)
+                                if (indexFromData != null)
                                 {
-                                    EditorGUILayout.LabelField($"Index from DataManager: {actualIndex}", EditorStyles.miniLabel);
-                                    
-                                    if (actualIndex < valueInfo.listSize)
+                                    int? actualIndex = TryConvertToInt(indexFromData);
+                                    if (actualIndex.HasValue)
                                     {
-                                        var currentValue = GetListValueAtIndex(keyValue, actualIndex);
-                                        EditorGUILayout.LabelField($"Will modify element at index [{actualIndex}]: {currentValue}", EditorStyles.miniLabel);
+                                        EditorGUILayout.LabelField($"Index from DataManager: {actualIndex.Value}", EditorStyles.miniLabel);
+                                        
+                                        if (actualIndex.Value < valueInfo.listSize)
+                                        {
+                                            var currentValue = GetListValueAtIndex(keyValue, actualIndex.Value);
+                                            EditorGUILayout.LabelField($"Will modify element at index [{actualIndex.Value}]: {currentValue}", EditorStyles.miniLabel);
+                                        }
+                                        else if (actualIndex.Value == valueInfo.listSize)
+                                        {
+                                            EditorGUILayout.LabelField("Will append new element to list", EditorStyles.miniLabel);
+                                        }
                                     }
-                                    else if (actualIndex == valueInfo.listSize)
+                                    else
                                     {
-                                        EditorGUILayout.LabelField("Will append new element to list", EditorStyles.miniLabel);
+                                        EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' is not a numeric type (current type: {indexFromData.GetType().Name})", MessageType.Warning);
                                     }
                                 }
                                 else
                                 {
-                                    if (indexFromData == null)
-                                    {
-                                        EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' not found in DataManager", MessageType.Warning);
-                                    }
-                                    else
-                                    {
-                                        EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' is not an int (current type: {indexFromData.GetType().Name})", MessageType.Warning);
-                                    }
+                                    EditorGUILayout.HelpBox($"Key '{indexDataKeyProperty.stringValue}' not found in DataManager", MessageType.Warning);
                                 }
                             }
                         }
@@ -713,10 +730,12 @@ namespace UnityEditor.Timeline
         }
 
         /// <summary>
-        /// 绘制 Protobuf 字段下拉选择框（支持多层嵌套导航）
+        /// 绘制 Protobuf 字段下拉选择框（支持多层嵌套导航和元素字段）
         /// </summary>
         private static void DrawProtobufFieldDropdown(SerializedProperty fieldProperty, SerializedProperty indexTypeProperty,
                                                      SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty,
+                                                     SerializedProperty elementFieldProperty, SerializedProperty elementIndexTypeProperty,
+                                                     SerializedProperty elementIndexNumericValueProperty, SerializedProperty elementIndexDataKeyProperty,
                                                      TimelineDataManager dataManager)
         {
             if (fieldProperty == null)
@@ -836,7 +855,7 @@ namespace UnityEditor.Timeline
                         EditorGUILayout.LabelField($"Type: RepeatedField<{elementType.Name}>", EditorStyles.miniLabel);
                         EditorGUILayout.LabelField($"List Size: {fieldInfo.listSize}", EditorStyles.miniLabel);
                         
-                        // If element is a message (nested object), allow further navigation
+                        // If element is a message (nested object), show element field selection
                         if (IsProtobufMessage(elementType))
                         {
                             // Reset index only when path changed (field selection changed)
@@ -845,6 +864,10 @@ namespace UnityEditor.Timeline
                                 indexTypeProperty.intValue = 0;
                                 indexNumericValueProperty.intValue = 0;
                                 indexDataKeyProperty.stringValue = "";
+                                elementFieldProperty.stringValue = "";
+                                elementIndexTypeProperty.intValue = 0;
+                                elementIndexNumericValueProperty.intValue = 0;
+                                elementIndexDataKeyProperty.stringValue = "";
                             }
                             
                             // For nested objects in list, show index source selection
@@ -859,58 +882,75 @@ namespace UnityEditor.Timeline
                                     null  // No values for object lists
                                 );
                                 
-                                // Get the element at the index to continue navigation (use numeric index for preview)
-                                int previewIndex = indexTypeProperty.intValue == 0 ? indexNumericValueProperty.intValue : 0;
-                                
-                                var listValue = property.GetValue(currentObject);
-                                var indexer = valueType.GetProperty("Item");
-                                if (indexer != null && previewIndex >= 0 && previewIndex < fieldInfo.listSize)
+                                // Show element field dropdown
+                                var elementFields = GetProtobufFieldsAtLevel(elementType, false);
+                                if (elementFields.Length > 0)
                                 {
-                                    var elementValue = indexer.GetValue(listValue, new object[] { previewIndex });
-                                    if (elementValue != null)
+                                    EditorGUILayout.Space(3);
+                                    EditorGUILayout.LabelField("Element Field Selection", EditorStyles.boldLabel);
+                                    
+                                    string currentElementField = elementFieldProperty.stringValue;
+                                    int elementFieldIndex = System.Array.IndexOf(elementFields, currentElementField);
+                                    int elementFieldDisplayIndex = elementFieldIndex >= 0 ? elementFieldIndex : 0;
+                                    
+                                    var newElementFieldIndex = EditorGUILayout.Popup("Element Field", elementFieldDisplayIndex, elementFields);
+                                    string selectedElementField = elementFields[newElementFieldIndex];
+                                    
+                                    if (elementFieldProperty.stringValue != selectedElementField)
                                     {
-                                        currentObject = elementValue;
-                                        currentType = elementType;
-                                        
-                                        // Now show nested field selection for the list element
-                                        // We need to check if there's a saved nested field in the path
-                                        var nestedFields = GetProtobufFieldsAtLevel(elementType, false);
-                                        if (nestedFields.Length > 0)
+                                        elementFieldProperty.stringValue = selectedElementField;
+                                        // Reset element index when element field changes
+                                        elementIndexTypeProperty.intValue = 0;
+                                        elementIndexNumericValueProperty.intValue = 0;
+                                        elementIndexDataKeyProperty.stringValue = "";
+                                    }
+                                    
+                                    // Get element at preview index to show element field info
+                                    int previewIndex = indexTypeProperty.intValue == 0 ? indexNumericValueProperty.intValue : 0;
+                                    
+                                    var listValue = property.GetValue(currentObject);
+                                    var indexer = valueType.GetProperty("Item");
+                                    if (indexer != null && previewIndex >= 0 && previewIndex < fieldInfo.listSize)
+                                    {
+                                        var elementValue = indexer.GetValue(listValue, new object[] { previewIndex });
+                                        if (elementValue != null && !string.IsNullOrEmpty(selectedElementField))
                                         {
-                                            // Check if we have a nested field selection in the path
-                                            string nestedSelection = depth + 1 < pathParts.Length ? pathParts[depth + 1] : "";
-                                            int nestedIndex = System.Array.IndexOf(nestedFields, nestedSelection);
-                                            int nestedDisplayIndex = nestedIndex >= 0 ? nestedIndex : 0;
-                                            
-                                            var newNestedIndex = EditorGUILayout.Popup("Nested Field", nestedDisplayIndex, nestedFields);
-                                            
-                                            if (newNestedIndex >= 0 && newNestedIndex < nestedFields.Length)
+                                            var elementProp = elementType.GetProperty(selectedElementField);
+                                            if (elementProp != null)
                                             {
-                                                string selectedNestedField = nestedFields[newNestedIndex];
+                                                var elementFieldValue = elementProp.GetValue(elementValue);
+                                                var elementFieldType = elementProp.PropertyType;
                                                 
-                                                // Update path to include nested field
-                                                string fullPath = newPath + "." + selectedNestedField;
-                                                if (fieldProperty.stringValue != fullPath)
+                                                // Check if element field is a list
+                                                if (IsProtobufList(elementFieldType))
                                                 {
-                                                    fieldProperty.stringValue = fullPath;
-                                                }
-                                                
-                                                // Show the nested field info
-                                                var nestedProp = elementType.GetProperty(selectedNestedField);
-                                                if (nestedProp != null)
-                                                {
-                                                    var nestedValue = nestedProp.GetValue(elementValue);
-                                                    var nestedType = nestedProp.PropertyType;
-                                                    EditorGUILayout.LabelField($"Type: {nestedType.Name}", EditorStyles.miniLabel);
-                                                    if (nestedValue != null)
+                                                    var elementFieldInfo = GetProtobufFieldInfo(elementValue, selectedElementField);
+                                                    EditorGUILayout.LabelField($"Type: {elementFieldInfo.typeName}", EditorStyles.miniLabel);
+                                                    EditorGUILayout.LabelField($"List Size: {elementFieldInfo.listSize}", EditorStyles.miniLabel);
+                                                    
+                                                    // Show element index selection for element field list
+                                                    if (elementFieldInfo.listSize > 0)
                                                     {
-                                                        EditorGUILayout.LabelField($"Value: {nestedValue}", EditorStyles.miniLabel);
+                                                        DrawProtobufListIndexGUI(
+                                                            elementIndexTypeProperty,
+                                                            elementIndexNumericValueProperty,
+                                                            elementIndexDataKeyProperty,
+                                                            dataManager,
+                                                            elementFieldInfo.listSize,
+                                                            elementFieldInfo.listValues
+                                                        );
+                                                    }
+                                                }
+                                                else if (IsNumericType(elementFieldType))
+                                                {
+                                                    EditorGUILayout.LabelField($"Type: {elementFieldType.Name}", EditorStyles.miniLabel);
+                                                    if (elementFieldValue != null)
+                                                    {
+                                                        EditorGUILayout.LabelField($"Value: {elementFieldValue}", EditorStyles.miniLabel);
                                                     }
                                                 }
                                             }
                                         }
-                                        
-                                        break; // Don't continue the loop, we've handled nested field selection here
                                     }
                                 }
                             }
@@ -1006,6 +1046,36 @@ namespace UnityEditor.Timeline
             return fields.ToArray();
         }
 
+        /// <summary>
+        /// 尝试将各种数值类型转换为 int
+        /// </summary>
+        private static int? TryConvertToInt(object value)
+        {
+            if (value == null) return null;
+            
+            try
+            {
+                switch (value)
+                {
+                    case int i: return i;
+                    case uint ui: return (int)ui;
+                    case float f: return (int)f;
+                    case double d: return (int)d;
+                    case long l: return (int)l;
+                    case ulong ul: return (int)ul;
+                    case short s: return s;
+                    case ushort us: return us;
+                    case byte b: return b;
+                    case sbyte sb: return sb;
+                    default: return null;
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        
         /// <summary>
         /// 判断类型是否为数值类型
         /// </summary>

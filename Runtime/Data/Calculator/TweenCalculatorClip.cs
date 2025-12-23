@@ -48,6 +48,14 @@ namespace TweenPlayables
         public int leftIndexNumericValue;
         public string leftIndexDataKey;
         
+        // 左操作数元素字段（当 leftProtobufField 指向 List 且元素是 Protobuf Message 时使用）
+        public string leftElementField;
+        
+        // 左操作数元素索引数据源（当 leftElementField 也指向 List 时使用）
+        public CalculatorDataSource leftElementIndexType;
+        public int leftElementIndexNumericValue;
+        public string leftElementIndexDataKey;
+        
         // 运算符
         public CalculationOperator calculationOperator;
         
@@ -61,6 +69,14 @@ namespace TweenPlayables
         public CalculatorDataSource rightIndexType;
         public int rightIndexNumericValue;
         public string rightIndexDataKey;
+        
+        // 右操作数元素字段（当 rightProtobufField 指向 List 且元素是 Protobuf Message 时使用）
+        public string rightElementField;
+        
+        // 右操作数元素索引数据源（当 rightElementField 也指向 List 时使用）
+        public CalculatorDataSource rightElementIndexType;
+        public int rightElementIndexNumericValue;
+        public string rightElementIndexDataKey;
         
         // 结果存储配置
         public string resultDataKey;

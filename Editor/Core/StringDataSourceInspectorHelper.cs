@@ -47,6 +47,9 @@ namespace UnityEditor.Timeline
             var indexTypeProperty = property.FindPropertyRelative("indexType");
             var indexNumericValueProperty = property.FindPropertyRelative("indexNumericValue");
             var indexDataKeyProperty = property.FindPropertyRelative("indexDataKey");
+            var elementIndexTypeProperty = property.FindPropertyRelative("elementIndexType");
+            var elementIndexNumericValueProperty = property.FindPropertyRelative("elementIndexNumericValue");
+            var elementIndexDataKeyProperty = property.FindPropertyRelative("elementIndexDataKey");
 
             float lineHeight = EditorGUIUtility.singleLineHeight;
             float spacing = EditorGUIUtility.standardVerticalSpacing;
@@ -85,17 +88,25 @@ namespace UnityEditor.Timeline
                     // 只有当 Protobuf 字段是列表时才显示索引配置
                     if (IsProtobufFieldList(protobufFieldProperty.stringValue))
                     {
-                        currentRect = DrawIndexGUI(currentRect, indexTypeProperty, indexNumericValueProperty, indexDataKeyProperty, lineHeight, spacing);
+                        currentRect = DrawIndexGUI(currentRect, indexTypeProperty, indexNumericValueProperty, indexDataKeyProperty, lineHeight, spacing, "主列表索引");
                         
                         // 如果 List 元素是 Protobuf Message，显示元素字段选择
                         if (IsProtobufListElementMessage(protobufFieldProperty.stringValue))
                         {
                             currentRect = DrawElementFieldDropdown(currentRect, protobufFieldProperty.stringValue, elementFieldProperty, lineHeight, spacing);
+                            
+                            // 如果元素字段也是列表，显示元素索引配置
+                            if (!string.IsNullOrEmpty(elementFieldProperty.stringValue) && IsElementFieldList(protobufFieldProperty.stringValue, elementFieldProperty.stringValue))
+                            {
+                                currentRect = DrawIndexGUI(currentRect, elementIndexTypeProperty, elementIndexNumericValueProperty, elementIndexDataKeyProperty, lineHeight, spacing, "元素列表索引");
+                            }
                         }
                         
                         // 显示索引后的最终值
                         currentRect = DrawProtobufFinalValue(currentRect, protobufFieldProperty.stringValue, elementFieldProperty.stringValue,
-                                                            indexTypeProperty.intValue, indexNumericValueProperty.intValue, indexDataKeyProperty.stringValue, lineHeight, spacing);
+                                                            indexTypeProperty.intValue, indexNumericValueProperty.intValue, indexDataKeyProperty.stringValue,
+                                                            elementIndexTypeProperty.intValue, elementIndexNumericValueProperty.intValue, elementIndexDataKeyProperty.stringValue,
+                                                            lineHeight, spacing);
                     }
                     break;
             }
@@ -110,13 +121,13 @@ namespace UnityEditor.Timeline
         /// <summary>
         /// 绘制索引配置 UI（Rect 版本，用于 Protobuf）
         /// </summary>
-        private static Rect DrawIndexGUI(Rect currentRect, SerializedProperty indexTypeProperty, SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty, float lineHeight, float spacing)
+        private static Rect DrawIndexGUI(Rect currentRect, SerializedProperty indexTypeProperty, SerializedProperty indexNumericValueProperty, SerializedProperty indexDataKeyProperty, float lineHeight, float spacing, string label = "Index Source")
         {
             var labelWidth = EditorGUIUtility.labelWidth;
             var labelRect = new Rect(currentRect.x, currentRect.y, labelWidth, lineHeight);
             var popupRect = new Rect(currentRect.x + labelWidth, currentRect.y, currentRect.width - labelWidth, lineHeight);
             
-            EditorGUI.LabelField(labelRect, Styles.IndexType);
+            EditorGUI.LabelField(labelRect, new GUIContent(label));
             indexTypeProperty.intValue = EditorGUI.Popup(popupRect, indexTypeProperty.intValue, Styles.IndexSourceTypeNames);
             currentRect.y += lineHeight + spacing;
 
@@ -274,6 +285,40 @@ namespace UnityEditor.Timeline
                     if (IsProtobufListElementMessage(protobufFieldProperty.stringValue))
                     {
                         totalHeight += (lineHeight + spacing); // Element Field dropdown
+                        
+                        // 如果元素字段也是列表，添加元素索引配置的高度
+                        if (!string.IsNullOrEmpty(elementFieldProperty.stringValue) && IsElementFieldList(protobufFieldProperty.stringValue, elementFieldProperty.stringValue))
+                        {
+                            var elementIndexTypeProperty = property.FindPropertyRelative("elementIndexType");
+                            var elementIndexDataKeyProperty = property.FindPropertyRelative("elementIndexDataKey");
+                            
+                            // Element Index Source dropdown
+                            totalHeight += (lineHeight + spacing);
+                            
+                            if (elementIndexTypeProperty.intValue == 0) // Numeric
+                            {
+                                // Element Index value field
+                                totalHeight += (lineHeight + spacing);
+                            }
+                            else if (elementIndexTypeProperty.intValue == 1) // DataManager
+                            {
+                                // Element Index Key dropdown
+                                totalHeight += (lineHeight + spacing);
+                                
+                                // 如果选择了 Element Index Key，显示 Element Index Key Value
+                                if (!string.IsNullOrEmpty(elementIndexDataKeyProperty.stringValue))
+                                {
+                                    if (dataManager != null)
+                                    {
+                                        var keyValue = GetDataManagerValue(elementIndexDataKeyProperty.stringValue);
+                                        if (keyValue != null)
+                                        {
+                                            totalHeight += (lineHeight + spacing); // Element Index Key Value
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                     
                     // 最终值显示
@@ -844,7 +889,18 @@ namespace UnityEditor.Timeline
                 // 显示类型信息
                 if (IsProtobufList(finalType))
                 {
-                    EditorGUI.LabelField(currentRect, $"Type: List (需要配置索引)", EditorStyles.miniLabel);
+                    // 获取列表长度
+                    int listSize = 0;
+                    if (finalValue != null)
+                    {
+                        var countProperty = finalType.GetProperty("Count");
+                        if (countProperty != null)
+                        {
+                            listSize = (int)countProperty.GetValue(finalValue);
+                        }
+                    }
+                    
+                    EditorGUI.LabelField(currentRect, $"Type: List (长度: {listSize}, 需要配置索引)", EditorStyles.miniLabel);
                     currentRect.y += lineHeight + spacing;
                     // List 类型不显示当前值，因为还需要配置索引才能得到最终值
                 }
@@ -899,8 +955,10 @@ namespace UnityEditor.Timeline
         /// <summary>
         /// 绘制 Protobuf 索引后的最终值（Rect 版本）
         /// </summary>
-        private static Rect DrawProtobufFinalValue(Rect currentRect, string fieldPath, string elementField, int indexType, 
-                                                   int indexNumericValue, string indexDataKey, float lineHeight, float spacing)
+        private static Rect DrawProtobufFinalValue(Rect currentRect, string fieldPath, string elementField, 
+                                                   int indexType, int indexNumericValue, string indexDataKey,
+                                                   int elementIndexType, int elementIndexNumericValue, string elementIndexDataKey,
+                                                   float lineHeight, float spacing)
         {
             var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
             if (dataManager == null || string.IsNullOrEmpty(fieldPath))
@@ -970,7 +1028,44 @@ namespace UnityEditor.Timeline
                 object finalValue = elementValue;
                 if (!string.IsNullOrEmpty(elementFieldPath))
                 {
-                    finalValue = GetProtobufFieldValue(elementValue, elementFieldPath);
+                    var elementType = elementValue.GetType();
+                    
+                    // 检查元素是否为基本类型（string/数值），如果是则直接使用元素值
+                    if (!(elementValue is string || IsNumericType(elementType)))
+                    {
+                        finalValue = GetProtobufFieldValue(elementValue, elementFieldPath);
+                        
+                        // 如果元素字段值是列表，使用 elementIndex 获取元素
+                        if (finalValue != null && IsProtobufList(finalValue.GetType()))
+                        {
+                            int actualElementIndex = 0;
+                            if (elementIndexType == 0) // Numeric
+                            {
+                                actualElementIndex = elementIndexNumericValue;
+                            }
+                            else // DataManager
+                            {
+                                var elementIndexValue = GetDataManagerValue(elementIndexDataKey);
+                                if (elementIndexValue != null)
+                                {
+                                    if (elementIndexValue is int intValue)
+                                    {
+                                        actualElementIndex = intValue;
+                                    }
+                                    else if (elementIndexValue is long longValue)
+                                    {
+                                        actualElementIndex = (int)longValue;
+                                    }
+                                    else if (int.TryParse(elementIndexValue.ToString(), out int parsedValue))
+                                    {
+                                        actualElementIndex = parsedValue;
+                                    }
+                                }
+                            }
+                            
+                            finalValue = GetListValueAtIndex(finalValue, actualElementIndex);
+                        }
+                    }
                 }
                 
                 if (finalValue != null)
@@ -1330,6 +1425,63 @@ namespace UnityEditor.Timeline
                     if (IsProtobufMessage(valueType))
                     {
                         currentObject = value;
+                        currentType = valueType;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+            catch
+            {
+                // 忽略错误
+            }
+            
+            return false;
+        }
+        
+        /// <summary>
+        /// 检查元素字段是否为列表类型
+        /// </summary>
+        private static bool IsElementFieldList(string listFieldPath, string elementFieldPath)
+        {
+            if (string.IsNullOrEmpty(listFieldPath) || string.IsNullOrEmpty(elementFieldPath))
+                return false;
+            
+            var dataManager = UnityEngine.Object.FindObjectOfType<UnityEngine.Timeline.TimelineDataManager>();
+            if (dataManager == null || dataManager.genericFishDeadSync == null)
+                return false;
+            
+            try
+            {
+                // 获取列表元素类型
+                var elementType = GetProtobufListElementType(dataManager.genericFishDeadSync, listFieldPath);
+                if (elementType == null)
+                    return false;
+                
+                // 导航到元素字段
+                var pathParts = elementFieldPath.Split('.');
+                System.Type currentType = elementType;
+                
+                for (int i = 0; i < pathParts.Length; i++)
+                {
+                    var fieldName = pathParts[i];
+                    var property = currentType.GetProperty(fieldName);
+                    if (property == null)
+                        return false;
+                    
+                    var valueType = property.PropertyType;
+                    
+                    // 如果是最后一个字段，检查是否为列表
+                    if (i == pathParts.Length - 1)
+                    {
+                        return IsProtobufList(valueType);
+                    }
+                    
+                    // 继续导航
+                    if (IsProtobufMessage(valueType))
+                    {
                         currentType = valueType;
                     }
                     else

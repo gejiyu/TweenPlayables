@@ -7,11 +7,17 @@ using Sirenix.OdinInspector;
 namespace TweenPlayables
 {
     /// <summary>
-    /// 动画条目，包含备注和动画名称
+    /// 动画条目，包含分组、备注和动画名称
     /// </summary>
     [Serializable]
     public class AnimationEntry
     {
+        [HorizontalGroup]
+        [LabelText("分组")]
+        [LabelWidth(60)]
+        [ValidateInput("ValidateGroup", "分组不能为空")]
+        public string group = "默认分组";
+        
         [HorizontalGroup]
         [LabelText("备注信息")]
         [LabelWidth(60)]
@@ -25,6 +31,11 @@ namespace TweenPlayables
         public string animationName = "";
 
         // 验证方法
+        private bool ValidateGroup(string value)
+        {
+            return !string.IsNullOrWhiteSpace(value);
+        }
+
         private bool ValidateComment(string value)
         {
             return !string.IsNullOrWhiteSpace(value);
@@ -37,8 +48,9 @@ namespace TweenPlayables
         
         public AnimationEntry() { }
         
-        public AnimationEntry(string comment, string animationName)
+        public AnimationEntry(string group, string comment, string animationName)
         {
+            this.group = group;
             this.comment = comment;
             this.animationName = animationName;
         }
@@ -66,7 +78,7 @@ namespace TweenPlayables
         [Button("添加新条目", ButtonSizes.Medium)]
         private void AddNewEntry()
         {
-            animationEntries.Add(new AnimationEntry("新备注", "新动画名称"));
+            animationEntries.Add(new AnimationEntry("默认分组", "新备注", "新动画名称"));
         }
 
         [PropertySpace(SpaceBefore = 10)]
@@ -85,13 +97,26 @@ namespace TweenPlayables
         [Button("排序条目", ButtonSizes.Medium)]
         private void SortEntries()
         {
-            animationEntries.Sort((a, b) => string.Compare(a.comment, b.comment, StringComparison.OrdinalIgnoreCase));
+            animationEntries.Sort((a, b) => 
+            {
+                int groupCompare = string.Compare(a.group, b.group, StringComparison.OrdinalIgnoreCase);
+                if (groupCompare != 0) return groupCompare;
+                return string.Compare(a.comment, b.comment, StringComparison.OrdinalIgnoreCase);
+            });
         }
 
         [Title("预览信息")]
         [ShowInInspector, ReadOnly]
         [LabelText("条目数量")]
         private int EntryCount => animationEntries.Count;
+
+        /// <summary>
+        /// 获取所有分组名称
+        /// </summary>
+        public string[] GetGroups()
+        {
+            return animationEntries.Select(entry => entry.group).Distinct().OrderBy(g => g).ToArray();
+        }
 
         /// <summary>
         /// 获取所有备注信息（用于下拉框显示）
@@ -102,11 +127,35 @@ namespace TweenPlayables
         }
 
         /// <summary>
+        /// 根据分组获取备注信息
+        /// </summary>
+        public string[] GetCommentsByGroup(string group)
+        {
+            return animationEntries.Where(e => e.group == group).Select(e => e.comment).ToArray();
+        }
+
+        /// <summary>
         /// 获取所有动画名称
         /// </summary>
         public string[] GetAnimationNames()
         {
             return animationEntries.Select(entry => entry.animationName).ToArray();
+        }
+
+        /// <summary>
+        /// 根据分组获取动画名称
+        /// </summary>
+        public string[] GetAnimationNamesByGroup(string group)
+        {
+            return animationEntries.Where(e => e.group == group).Select(e => e.animationName).ToArray();
+        }
+
+        /// <summary>
+        /// 根据分组获取所有条目
+        /// </summary>
+        public List<AnimationEntry> GetEntriesByGroup(string group)
+        {
+            return animationEntries.Where(e => e.group == group).ToList();
         }
 
         /// <summary>
@@ -130,14 +179,14 @@ namespace TweenPlayables
         /// <summary>
         /// 添加动画条目
         /// </summary>
-        public void AddAnimationEntry(string comment, string animationName)
+        public void AddAnimationEntry(string group, string comment, string animationName)
         {
-            if (!string.IsNullOrEmpty(comment) && !string.IsNullOrEmpty(animationName))
+            if (!string.IsNullOrEmpty(group) && !string.IsNullOrEmpty(comment) && !string.IsNullOrEmpty(animationName))
             {
                 // 检查是否已存在相同的备注
                 if (!animationEntries.Any(e => e.comment == comment))
                 {
-                    animationEntries.Add(new AnimationEntry(comment, animationName));
+                    animationEntries.Add(new AnimationEntry(group, comment, animationName));
                 }
             }
         }

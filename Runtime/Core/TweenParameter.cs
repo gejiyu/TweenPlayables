@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using TMPro;
 
 namespace TweenPlayables
 {
@@ -253,60 +252,6 @@ namespace TweenPlayables
             return StringTweenUtility.TweenText(actualStart, actualEnd, t, scrambleMode, customScrambleChars);
         }
     }
-
-
-
-    [Serializable]
-    public sealed class VertexGradientTweenParamterer : TweenParameter<VertexGradient>
-    {
-        static readonly VertexGradient DefaultGradient = new()
-        {
-            topLeft = Color.white,
-            topRight = Color.white,
-            bottomLeft = Color.white,
-            bottomRight = Color.white
-        };
-
-        public VertexGradientTweenParamterer() : base(DefaultGradient, DefaultGradient) { }
-
-        public override VertexGradient GetRelativeValue(object key, VertexGradient value)
-        {
-            return new VertexGradient()
-            {
-                topLeft = StartValue.topLeft + value.topLeft,
-                topRight = StartValue.topRight + value.topRight,
-                bottomLeft = StartValue.bottomLeft + value.bottomLeft,
-                bottomRight = StartValue.bottomRight + value.bottomRight
-            };
-        }
-
-        public override VertexGradient Evaluate(object key, float t)
-        {
-            if (IsRelative)
-            {
-                var startValue = GetRelativeValue(key, StartValue);
-                var endValue = GetRelativeValue(key, EndValue);
-                return new VertexGradient()
-                {
-                    topLeft = Color.LerpUnclamped(startValue.topLeft, endValue.topLeft, t),
-                    topRight = Color.LerpUnclamped(startValue.topRight, endValue.topRight, t),
-                    bottomLeft = Color.LerpUnclamped(startValue.bottomLeft, endValue.bottomLeft, t),
-                    bottomRight = Color.LerpUnclamped(startValue.bottomLeft, endValue.bottomLeft, t),
-                };
-            }
-            else
-            {
-                return new VertexGradient()
-                {
-                    topLeft = Color.LerpUnclamped(StartValue.topLeft, EndValue.topLeft, t),
-                    topRight = Color.LerpUnclamped(StartValue.topRight, EndValue.topRight, t),
-                    bottomLeft = Color.LerpUnclamped(StartValue.bottomLeft, EndValue.bottomLeft, t),
-                    bottomRight = Color.LerpUnclamped(StartValue.bottomLeft, EndValue.bottomLeft, t),
-                };
-            }
-        }
-    }
-
     // ChangeParameter implementations for common types
     [Serializable]
     public sealed class StringChangeParameter : ChangeParameter<string>

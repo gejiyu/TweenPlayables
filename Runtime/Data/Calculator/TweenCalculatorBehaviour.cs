@@ -116,7 +116,11 @@ namespace TweenPlayables
                 calculatorNode.leftDataType == CalculatorDataSource.Protobuf ? calculatorNode.leftProtobufField : calculatorNode.leftDataKey,
                 calculatorNode.leftIndexType,
                 calculatorNode.leftIndexNumericValue,
-                calculatorNode.leftIndexDataKey
+                calculatorNode.leftIndexDataKey,
+                calculatorNode.leftElementField,
+                calculatorNode.leftElementIndexType,
+                calculatorNode.leftElementIndexNumericValue,
+                calculatorNode.leftElementIndexDataKey
             );
 
             // 获取右操作数
@@ -127,7 +131,11 @@ namespace TweenPlayables
                 calculatorNode.rightDataType == CalculatorDataSource.Protobuf ? calculatorNode.rightProtobufField : calculatorNode.rightDataKey,
                 calculatorNode.rightIndexType,
                 calculatorNode.rightIndexNumericValue,
-                calculatorNode.rightIndexDataKey
+                calculatorNode.rightIndexDataKey,
+                calculatorNode.rightElementField,
+                calculatorNode.rightElementIndexType,
+                calculatorNode.rightElementIndexNumericValue,
+                calculatorNode.rightElementIndexDataKey
             );
 
             // 执行运算
@@ -148,20 +156,39 @@ namespace TweenPlayables
         /// </summary>
         private float GetOperandValue(TimelineDataManager dataManager, 
             CalculatorDataSource dataType, float numericValue, string dataKey,
-            CalculatorDataSource indexType, int indexNumericValue, string indexDataKey)
+            CalculatorDataSource indexType, int indexNumericValue, string indexDataKey,
+            string elementField, CalculatorDataSource elementIndexType, int elementIndexNumericValue, string elementIndexDataKey)
         {
+            Debug.Log("========== [GetOperandValue] 开始 ==========");
+            Debug.Log($"[GetOperandValue] 数据源类型: {dataType}");
+            Debug.Log($"[GetOperandValue] numericValue: {numericValue}");
+            Debug.Log($"[GetOperandValue] dataKey: '{dataKey}'");
+            Debug.Log($"[GetOperandValue] indexType: {indexType}, indexNumericValue: {indexNumericValue}, indexDataKey: '{indexDataKey}'");
+            Debug.Log($"[GetOperandValue] elementField: '{elementField}'");
+            Debug.Log($"[GetOperandValue] elementIndexType: {elementIndexType}, elementIndexNumericValue: {elementIndexNumericValue}, elementIndexDataKey: '{elementIndexDataKey}'");
+            
+            float result = 0f;
+            
             switch (dataType)
             {
                 case CalculatorDataSource.Numeric:
-                    return numericValue;
+                    result = numericValue;
+                    Debug.Log($"[GetOperandValue] Numeric 模式返回: {result}");
+                    return result;
 
                 case CalculatorDataSource.DataManager:
-                    return GetDataManagerValue(dataManager, dataKey, indexType, indexNumericValue, indexDataKey);
+                    result = GetDataManagerValue(dataManager, dataKey, indexType, indexNumericValue, indexDataKey);
+                    Debug.Log($"[GetOperandValue] DataManager 模式返回: {result}");
+                    return result;
 
                 case CalculatorDataSource.Protobuf:
-                    return GetProtobufValue(dataManager, dataKey, indexType, indexNumericValue, indexDataKey);
+                    result = GetProtobufValue(dataManager, dataKey, indexType, indexNumericValue, indexDataKey,
+                        elementField, elementIndexType, elementIndexNumericValue, elementIndexDataKey);
+                    Debug.Log($"[GetOperandValue] Protobuf 模式返回: {result}");
+                    return result;
 
                 default:
+                    Debug.LogWarning($"[GetOperandValue] 未知的数据源类型: {dataType}，返回 0");
                     return 0f;
             }
         }
@@ -185,13 +212,15 @@ namespace TweenPlayables
         /// 从 Protobuf 获取值
         /// </summary>
         private float GetProtobufValue(TimelineDataManager dataManager, string fieldPath,
-            CalculatorDataSource indexType, int indexNumericValue, string indexDataKey)
+            CalculatorDataSource indexType, int indexNumericValue, string indexDataKey,
+            string elementField, CalculatorDataSource elementIndexType, int elementIndexNumericValue, string elementIndexDataKey)
         {
             if (dataManager?.genericFishDeadSync == null || string.IsNullOrEmpty(fieldPath))
                 return 0f;
 
             return GetProtobufFieldValue(dataManager.genericFishDeadSync, fieldPath, 
-                indexType, indexNumericValue, indexDataKey, dataManager);
+                indexType, indexNumericValue, indexDataKey, dataManager,
+                elementField, elementIndexType, elementIndexNumericValue, elementIndexDataKey);
         }
 
         /// <summary>
@@ -268,10 +297,11 @@ namespace TweenPlayables
         }
 
         /// <summary>
-        /// 使用反射从 Protobuf 字段获取值（支持嵌套路径）
+        /// 使用反射从 Protobuf 字段获取值（支持嵌套路径和元素字段）
         /// </summary>
         private float GetProtobufFieldValue(object protobufObject, string fieldPath, 
-            CalculatorDataSource indexType, int indexNumericValue, string indexDataKey, TimelineDataManager dataManager)
+            CalculatorDataSource indexType, int indexNumericValue, string indexDataKey, TimelineDataManager dataManager,
+            string elementFieldPath, CalculatorDataSource elementIndexType, int elementIndexNumericValue, string elementIndexDataKey)
         {
             if (protobufObject == null || string.IsNullOrEmpty(fieldPath))
                 return 0f;
@@ -299,13 +329,23 @@ namespace TweenPlayables
                     
                     var value = property.GetValue(currentObject);
                     
+                    // 检查是否是 list 类型 - 如果是 list，不管是不是最后一层都要停止导航
+                    var valueType = property.PropertyType;
+                    if (valueType.IsGenericType && valueType.GetGenericTypeDefinition().Name.Contains("RepeatedField"))
+                    {
+                        Debug.Log($"[GetProtobufFieldValue] 在第 {i+1} 步遇到列表类型，停止路径导航");
+                        return ConvertProtobufValue(value, indexType, indexNumericValue, indexDataKey, dataManager,
+                            elementFieldPath, elementIndexType, elementIndexNumericValue, elementIndexDataKey);
+                    }
+                    
                     // 最后一层路径 - 提取值
                     if (i == pathParts.Length - 1)
                     {
-                        return ConvertProtobufValue(value, indexType, indexNumericValue, indexDataKey, dataManager);
+                        return ConvertProtobufValue(value, indexType, indexNumericValue, indexDataKey, dataManager,
+                            elementFieldPath, elementIndexType, elementIndexNumericValue, elementIndexDataKey);
                     }
                     
-                    // 继续导航到下一层
+                    // 继续导航到下一层（只有非 list 的嵌套对象才会继续）
                     currentObject = value;
                 }
             }
@@ -318,16 +358,17 @@ namespace TweenPlayables
         }
 
         /// <summary>
-        /// 转换 Protobuf 值为 float（支持 RepeatedField 和基础类型）
+        /// 转换 Protobuf 值为 float（支持 RepeatedField、基础类型和元素字段）
         /// </summary>
         private float ConvertProtobufValue(object value, CalculatorDataSource indexType, 
-            int indexNumericValue, string indexDataKey, TimelineDataManager dataManager)
+            int indexNumericValue, string indexDataKey, TimelineDataManager dataManager,
+            string elementFieldPath, CalculatorDataSource elementIndexType, int elementIndexNumericValue, string elementIndexDataKey)
         {
             if (value == null) return 0f;
 
             int index = GetIndexValue(dataManager, indexType, indexNumericValue, indexDataKey);
 
-            // 处理 RepeatedField 类型
+            // 处理 RepeatedField 类型 - 基本类型
             switch (value)
             {
                 case Google.Protobuf.Collections.RepeatedField<uint> uintList:
@@ -347,6 +388,40 @@ namespace TweenPlayables
                     
                 case Google.Protobuf.Collections.RepeatedField<ulong> ulongList:
                     return GetProtobufListValue(ulongList, index, "ulong");
+            }
+
+            // 检查是否是 Protobuf Message 的 RepeatedField
+            var valueType = value.GetType();
+            if (valueType.IsGenericType && valueType.GetGenericTypeDefinition().Name.Contains("RepeatedField"))
+            {
+                // 这是一个 RepeatedField<TMessage>，元素是 Protobuf Message
+                var indexer = valueType.GetProperty("Item");
+                var count = valueType.GetProperty("Count");
+                
+                if (indexer != null && count != null)
+                {
+                    int listSize = (int)count.GetValue(value);
+                    if (index >= 0 && index < listSize)
+                    {
+                        var element = indexer.GetValue(value, new object[] { index });
+                        
+                        // 如果有 elementFieldPath，继续访问元素的字段
+                        if (!string.IsNullOrEmpty(elementFieldPath) && element != null)
+                        {
+                            return GetProtobufFieldValue(element, elementFieldPath,
+                                elementIndexType, elementIndexNumericValue, elementIndexDataKey, dataManager,
+                                null, CalculatorDataSource.Numeric, 0, null);
+                        }
+                        
+                        // 直接转换元素值
+                        return ConvertToFloat(element, 0);
+                    }
+                    else if (index != 0)
+                    {
+                        Debug.LogWarning($"Protobuf RepeatedField index {index} out of range (size: {listSize})");
+                    }
+                }
+                return 0f;
             }
 
             // 处理基础数值类型
@@ -372,19 +447,63 @@ namespace TweenPlayables
         /// </summary>
         private int GetIndexValue(TimelineDataManager dataManager, CalculatorDataSource indexType, int indexNumericValue, string indexDataKey)
         {
+            Debug.Log($"[GetIndexValue] 开始 - indexType: {indexType}, indexNumericValue: {indexNumericValue}, indexDataKey: '{indexDataKey}'");
+            
+            int result = 0;
+            
             switch (indexType)
             {
                 case CalculatorDataSource.Numeric:
-                    return indexNumericValue;
+                    result = indexNumericValue;
+                    Debug.Log($"[GetIndexValue] Numeric 模式返回: {result}");
+                    return result;
 
                 case CalculatorDataSource.DataManager:
                     if (dataManager != null && !string.IsNullOrEmpty(indexDataKey))
                     {
-                        return dataManager.Get<int>(indexDataKey, 0);
+                        // 尝试获取各种数值类型
+                        var value = dataManager.Get<object>(indexDataKey, null);
+                        if (value != null)
+                        {
+                            result = ConvertToInt(value);
+                            Debug.Log($"[GetIndexValue] DataManager 模式从键 '{indexDataKey}' 获取到值: {value} (类型: {value.GetType().Name}), 转换为索引: {result}");
+                        }
+                        else
+                        {
+                            Debug.LogWarning($"[GetIndexValue] DataManager 键 '{indexDataKey}' 未找到，返回 0");
+                        }
+                        return result;
                     }
+                    Debug.LogWarning($"[GetIndexValue] DataManager 模式但参数无效，返回 0");
                     return 0;
 
                 default:
+                    Debug.LogWarning($"[GetIndexValue] 未知的索引类型: {indexType}，返回 0");
+                    return 0;
+            }
+        }
+        
+        /// <summary>
+        /// 将各种数值类型转换为 int
+        /// </summary>
+        private int ConvertToInt(object value)
+        {
+            if (value == null) return 0;
+            
+            switch (value)
+            {
+                case int i: return i;
+                case uint ui: return (int)ui;
+                case float f: return (int)f;
+                case double d: return (int)d;
+                case long l: return (int)l;
+                case ulong ul: return (int)ul;
+                case short s: return s;
+                case ushort us: return us;
+                case byte b: return b;
+                case sbyte sb: return sb;
+                default:
+                    Debug.LogWarning($"无法将类型 {value.GetType().Name} 转换为 int，返回 0");
                     return 0;
             }
         }

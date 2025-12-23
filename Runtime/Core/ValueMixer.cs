@@ -1,5 +1,4 @@
 using UnityEngine;
-using TMPro;
 
 namespace TweenPlayables
 {
@@ -70,20 +69,6 @@ namespace TweenPlayables
         protected override void BlendCore(Vector2 value, float weight)
         {
             Value += value * weight;
-        }
-    }
-
-    public sealed class VertexGradientValueMixer : ValueMixer<VertexGradient>
-    {
-        protected override void BlendCore(VertexGradient value, float weight)
-        {
-            Value = new VertexGradient()
-            {
-                topLeft = Value.topLeft + value.topLeft * weight,
-                topRight = Value.topRight + value.topRight * weight,
-                bottomLeft = Value.bottomLeft + value.bottomLeft * weight,
-                bottomRight = Value.bottomRight + value.bottomRight * weight
-            };
         }
     }
 }
